@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    com.underart: INFO

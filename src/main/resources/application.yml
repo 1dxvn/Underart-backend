@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: underart-backend
+  profiles:
+    active: dev
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  data:
+    mongodb:
+      uri: ${MONGO_URI}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+ai:
+  groq:
+    api-key: ${GROQ_API_KEY}
+  openai:
+    api-key: ${OPENAI_API_KEY}

@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/underart
+    username: postgres
+    password: postgres
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/underart
+  jpa:
+    show-sql: true
+
+jwt:
+  secret: ${JWT_SECRET:underart-dev-secret-key-change-me-0123456789abcdef}
+
+ai:
+  groq:
+    api-key: ${GROQ_API_KEY:dev-no-key}
+  openai:
+    api-key: ${OPENAI_API_KEY:dev-no-key}
+
+logging:
+  level:
+    root: INFO
+    com.underart: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
