@@ -4,5 +4,5 @@ import com.underart.domain.model.User;
 
 public interface RegisterUserUseCase {
 
-    User register(String username, String email, String passwordHash, User.Role role);
+    User register(String username, String email, String passwordHash);
 }

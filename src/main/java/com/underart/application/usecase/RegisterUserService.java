@@ -4,6 +4,7 @@ import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.RegisterUserUseCase;
 import com.underart.domain.port.out.UserRepositoryPort;
+import java.time.Instant;
 
 public class RegisterUserService implements RegisterUserUseCase {
 
@@ -14,9 +15,8 @@ public class RegisterUserService implements RegisterUserUseCase {
     }
 
     @Override
-    public User register(String username, String email, String passwordHash, User.Role role) {
-        if (role == User.Role.ADMIN) throw new BusinessRuleException("No se puede registrar un administrador");
+    public User register(String username, String email, String passwordHash) {
         if (users.existsByEmail(email)) throw new BusinessRuleException("El email ya está registrado");
-        return users.save(new User(null, username, email, passwordHash, role));
+        return users.save(new User(null, username, email, passwordHash, null, null, null, Instant.now()));
     }
 }
