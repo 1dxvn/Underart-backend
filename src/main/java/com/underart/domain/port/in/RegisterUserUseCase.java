@@ -4,5 +4,13 @@ import com.underart.domain.model.User;
 
 public interface RegisterUserUseCase {
 
-    User register(String username, String email, String passwordHash);
+    User register(RegisterUserCommand cmd);
+
+    record RegisterUserCommand(
+            String username,
+            String email,
+            String password,
+            String city,
+            String shippingAddress) {
+    }
 }
