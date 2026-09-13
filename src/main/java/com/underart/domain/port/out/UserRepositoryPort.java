@@ -1,14 +1,14 @@
 package com.underart.domain.port.out;
 
 import com.underart.domain.model.User;
-
 import java.util.Optional;
+import java.util.UUID;
 
 public interface UserRepositoryPort {
 
     User save(User user);
 
-    Optional<User> findById(Long id);
+    Optional<User> findById(UUID id);
 
     Optional<User> findByEmail(String email);
 

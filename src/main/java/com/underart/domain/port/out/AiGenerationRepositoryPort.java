@@ -1,6 +1,17 @@
 package com.underart.domain.port.out;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 public interface AiGenerationRepositoryPort {
 
-    void save(String provider, String prompt, String output, long latencyMs);
+    void save(AiGenerationRecord record);
+
+    record AiGenerationRecord(
+            String provider,
+            String artworkTitle,
+            BigDecimal suggestedPrice,
+            List<String> tags,
+            String rawResponse) {
+    }
 }
