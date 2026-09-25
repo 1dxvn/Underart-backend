@@ -20,7 +20,7 @@ public record Order(
     private static final BigDecimal FEE_RATE = new BigDecimal("0.10");
 
     public static BigDecimal calculateTotal(BigDecimal subtotal, BigDecimal shipping) {
-        BigDecimal fee = subtotal.multiply(FEE_RATE);
+        BigDecimal fee = subtotal.multiply(FEE_RATE).setScale(2, RoundingMode.HALF_UP);
         return subtotal.add(shipping).add(fee).setScale(2, RoundingMode.HALF_UP);
     }
 }
