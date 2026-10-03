@@ -15,14 +15,19 @@ API REST de una plataforma de subastas de arte. Los artistas publican obras
 ## Endpoints principales
 
 | Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | /api/auth/register | Registro de usuario |
-| POST | /api/auth/login | Login, devuelve JWT |
-| GET | /api/users/me | Usuario autenticado |
-| POST | /api/artworks | Crear obra |
-| GET | /api/auctions | Listar subastas |
-| POST | /api/bids | Pujar en una subasta |
-| POST | /api/orders | Comprar ya |
+|---|---|---|
+| POST | /api/v1/users/register | Registro de usuario |
+| GET | /api/v1/users/{id} | Consultar usuario por id |
+| POST | /api/v1/auth/login | Login (devuelve JWT) |
+| POST | /api/v1/artworks | Crear obra (dispara IA) |
+| GET | /api/v1/auctions?status= | Listar subastas (filtro opcional) |
+| POST | /api/v1/auctions/{id}/bids | Pujar en subasta |
+| POST | /api/v1/auctions/{id}/buy-now?buyerId= | Compra inmediata |
+
+## Pendiente
+
+- GET /api/v1/artworks/{id} — requiere FindArtworkUseCase
+- GET /api/v1/orders/{id} — requiere FindOrderUseCase
 
 Swagger UI: `/swagger-ui.html`
 
