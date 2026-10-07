@@ -25,7 +25,7 @@ public class BidRepositoryAdapter implements BidRepositoryPort {
 
     @Override
     public List<Bid> findByAuctionId(UUID auctionId) {
-        return repository.findByAuctionIdOrderByAmountDesc(auctionId).stream()
+        return repository.findByAuctionIdOrderByBidTimeDesc(auctionId).stream()
                 .map(BidMapper::toDomain).toList();
     }
 

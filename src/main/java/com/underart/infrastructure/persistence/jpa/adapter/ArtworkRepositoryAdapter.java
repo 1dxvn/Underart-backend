@@ -32,4 +32,9 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     public List<Artwork> findByArtistId(UUID artistId) {
         return repository.findByArtistId(artistId).stream().map(ArtworkMapper::toDomain).toList();
     }
+
+    @Override
+    public List<Artwork> findAll() {
+        return repository.findAll().stream().map(ArtworkMapper::toDomain).toList();
+    }
 }

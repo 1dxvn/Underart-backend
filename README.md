@@ -12,22 +12,31 @@ API REST de una plataforma de subastas de arte. Los artistas publican obras
 - Arquitectura hexagonal: `domain`, `application`, `infrastructure`
 - Docker y Render para el despliegue
 
-## Endpoints principales
+## Endpoints
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | /api/v1/users/register | Registro de usuario |
-| GET | /api/v1/users/{id} | Consultar usuario por id |
-| POST | /api/v1/auth/login | Login (devuelve JWT) |
-| POST | /api/v1/artworks | Crear obra (dispara IA) |
-| GET | /api/v1/auctions?status= | Listar subastas (filtro opcional) |
-| POST | /api/v1/auctions/{id}/bids | Pujar en subasta |
-| POST | /api/v1/auctions/{id}/buy-now?buyerId= | Compra inmediata |
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| POST | /api/v1/users/register | No | Registro de usuario |
+| GET | /api/v1/users/{id} | Sí | Consultar usuario por id |
+| GET | /api/v1/users/me | Sí | Perfil del usuario autenticado |
+| POST | /api/v1/auth/login | No | Login (devuelve JWT) |
+| POST | /api/v1/artworks | Sí | Crear obra (dispara IA) |
+| GET | /api/v1/artworks | Sí | Listar obras (filtro ?artistId=) |
+| GET | /api/v1/artworks/{id} | Sí | Detalle de obra |
+| POST | /api/v1/auctions | Sí | Crear subasta |
+| GET | /api/v1/auctions?status= | Sí | Listar subastas (filtro opcional) |
+| DELETE | /api/v1/auctions/{id} | Sí | Cancelar subasta activa |
+| POST | /api/v1/auctions/{id}/bids | Sí | Pujar en subasta |
+| GET | /api/v1/auctions/{id}/bids | Sí | Historial de pujas |
+| POST | /api/v1/auctions/{id}/buy-now?buyerId= | Sí | Compra inmediata |
 
-## Pendiente
+## Pendiente (deuda técnica)
 
-- GET /api/v1/artworks/{id} — requiere FindArtworkUseCase
-- GET /api/v1/orders/{id} — requiere FindOrderUseCase
+- Ownership check en DELETE /auctions/{id} — hoy cualquier usuario autenticado puede cancelar.
+- Race condition en pujas concurrentes — resolver con @Version si escala.
+- Handler específico para PaymentFailedException (no se lanza todavía).
+- buyerId viene del cliente en POST /auctions/{id}/bids y buy-now —
+  debería extraerse del JWT para evitar suplantación entre usuarios autenticados.
 
 Swagger UI: `/swagger-ui.html`
 

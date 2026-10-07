@@ -11,6 +11,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +33,13 @@ public class UserController {
         User user = registerUseCase.register(new RegisterUserCommand(
                 req.username(), req.email(), req.password(), req.city(), req.shippingAddress()));
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = (UUID) auth.getDetails();
+        return ResponseEntity.ok(UserResponse.from(findUserUseCase.findById(userId)));
     }
 
     @GetMapping("/{id}")

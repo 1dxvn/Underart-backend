@@ -12,4 +12,6 @@ public interface ArtworkRepositoryPort {
     Optional<Artwork> findById(UUID id);
 
     List<Artwork> findByArtistId(UUID artistId);
+
+    List<Artwork> findAll();
 }
