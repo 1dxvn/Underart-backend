@@ -52,6 +52,7 @@ public class AuctionBuilder {
         if (artworkId == null || basePrice == null || endDate == null) {
             throw new IllegalStateException("Faltan artwork, basePrice o endDate");
         }
-        return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice, startDate, endDate);
+        Instant start = startDate != null ? startDate : Instant.now();
+        return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice, start, endDate);
     }
 }

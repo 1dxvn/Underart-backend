@@ -32,6 +32,9 @@ public class PlaceBidService implements PlaceBidUseCase {
         if (auction.status() != AuctionStatus.ACTIVE) {
             throw new BusinessRuleException("La subasta no está activa");
         }
+        if (Instant.now().isAfter(auction.endDate())) {
+            throw new BusinessRuleException("La subasta ya terminó");
+        }
         if (amount.compareTo(auction.basePrice()) <= 0) {
             throw new InvalidBidException("La puja debe superar el precio base");
         }

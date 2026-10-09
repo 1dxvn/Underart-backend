@@ -37,6 +37,11 @@ API REST de una plataforma de subastas de arte. Los artistas publican obras
 - Handler específico para PaymentFailedException (no se lanza todavía).
 - buyerId viene del cliente en POST /auctions/{id}/bids y buy-now —
   debería extraerse del JWT para evitar suplantación entre usuarios autenticados.
+- artistId viene del cliente en POST /artworks (mismo problema de suplantación).
+- GET /users/{id} permite a cualquier usuario autenticado ver los datos (ciudad, dirección) de otro.
+- Las subastas no se cierran solas al llegar a endDate, y no se genera orden para la puja ganadora.
+- Flujo de pago no implementado (las órdenes quedan en PENDING).
+- La IA no se ha verificado con claves reales de Groq/OpenAI.
 
 Swagger UI: `/swagger-ui.html`
 

@@ -77,6 +77,15 @@ class SecurityRulesTest {
     }
 
     @Test
+    void unknownRouteWithValidTokenReturnsNotFound() throws Exception {
+        when(jwtService.validateToken("good")).thenReturn(true);
+        when(jwtService.extractEmail("good")).thenReturn("demo@underart.com");
+        when(jwtService.extractUserId("good")).thenReturn(UUID.randomUUID());
+        mockMvc.perform(get("/api/v1/nope").header("Authorization", "Bearer good"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void loginEndpointIsPublic() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
