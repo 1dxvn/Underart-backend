@@ -43,3 +43,7 @@ Swagger UI: `/swagger-ui.html`
 ## Ejecución
 
 Copia `.env.example` a `.env`, ajusta los valores y ejecuta `mvn spring-boot:run`.
+
+En desarrollo (perfil `dev`) se crea el usuario `demo@underart.com` / `password123`.
+En producción no existe ningún usuario demo: regístrate con `POST /api/v1/users/register`
+y luego inicia sesión con `POST /api/v1/auth/login`.

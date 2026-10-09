@@ -85,6 +85,12 @@ class SecurityRulesTest {
     }
 
     @Test
+    void swaggerUiHtmlPathIsNotBlockedBySecurity() throws Exception {
+        int status = mockMvc.perform(get("/swagger-ui.html")).andReturn().getResponse().getStatus();
+        assertThat(status).isNotEqualTo(403);
+    }
+
+    @Test
     void apiDocsPathIsNotBlockedBySecurity() throws Exception {
         int status = mockMvc.perform(get("/v3/api-docs")).andReturn().getResponse().getStatus();
         assertThat(status).isNotEqualTo(403);
