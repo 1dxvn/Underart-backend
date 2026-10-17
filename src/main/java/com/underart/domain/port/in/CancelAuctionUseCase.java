@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface CancelAuctionUseCase {
 
-    void cancel(UUID auctionId);
+    void cancel(UUID auctionId, UUID requesterId);
 }

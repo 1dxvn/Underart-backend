@@ -32,7 +32,7 @@ public abstract class AbstractAiAdapter implements AiProviderPort {
                 + dimensions + "). Responde solo JSON: {\"suggestedPrice\": number, \"tags\": [string]}";
         String content = call(prompt);
         try {
-            JsonNode json = mapper.readTree(content);
+            JsonNode json = mapper.readTree(extractJson(content));
             return new AiResult(getProviderName(), json.get("suggestedPrice").decimalValue(),
                     mapper.convertValue(json.get("tags"), new TypeReference<List<String>>() {}), content);
         } catch (Exception e) {
@@ -45,7 +45,7 @@ public abstract class AbstractAiAdapter implements AiProviderPort {
         String prompt = "Genera etiquetas para la obra '" + title + "': " + description
                 + ". Responde solo un array JSON de strings.";
         try {
-            return mapper.readValue(call(prompt), new TypeReference<List<String>>() {});
+            return mapper.readValue(extractJson(call(prompt)), new TypeReference<List<String>>() {});
         } catch (Exception e) {
             throw new AiProviderException("Respuesta de IA inválida: " + e.getMessage());
         }
@@ -63,6 +63,18 @@ public abstract class AbstractAiAdapter implements AiProviderPort {
         } catch (Exception e) {
             throw new AiProviderException("Fallo al llamar a " + getProviderName() + ": " + e.getMessage());
         }
+    }
+
+    static String extractJson(String content) {
+        String text = content == null ? "" : content.strip();
+        int object = text.indexOf('{');
+        int array = text.indexOf('[');
+        int start = object < 0 ? array : array < 0 ? object : Math.min(object, array);
+        if (start < 0) {
+            return text;
+        }
+        int end = text.lastIndexOf(text.charAt(start) == '{' ? '}' : ']');
+        return end > start ? text.substring(start, end + 1) : text;
     }
 
     private static RestClient buildClient() {

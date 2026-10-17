@@ -1,8 +1,6 @@
 package com.underart.infrastructure.observer;
 
-import com.underart.domain.model.Auction;
+import com.underart.domain.port.out.AuctionClosedListenerPort;
 
-public interface BidObserver {
-
-    void onAuctionClosed(Auction auction);
+public interface BidObserver extends AuctionClosedListenerPort {
 }

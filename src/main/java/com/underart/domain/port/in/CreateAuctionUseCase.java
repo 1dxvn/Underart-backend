@@ -11,6 +11,7 @@ public interface CreateAuctionUseCase {
     Auction create(CreateAuctionCommand cmd);
 
     record CreateAuctionCommand(
+            UUID requesterId,
             UUID artworkId,
             AuctionType type,
             BigDecimal basePrice,
