@@ -48,6 +48,10 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(errorHandler).accessDeniedHandler(errorHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/artworks", "/api/v1/artworks/*",
+                                "/api/v1/artworks/*/media", "/api/v1/auctions", "/api/v1/auctions/*",
+                                "/api/v1/users/*").permitAll()
                         .requestMatchers("/", "/api/v1/users/register", "/api/v1/auth/**",
                                 "/actuator/health", "/actuator/health/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

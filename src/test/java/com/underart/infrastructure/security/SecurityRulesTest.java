@@ -71,26 +71,42 @@ class SecurityRulesTest {
     }
 
     @Test
-    void protectedRouteWithoutTokenReturnsJson401() throws Exception {
+    void catalogReadIsPublic() throws Exception {
+        when(listArtworksUseCase.list(any(), any())).thenReturn(new PageResult<>(List.of(), 0, 20, 0));
         mockMvc.perform(get("/api/v1/artworks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItems").value(0));
+    }
+
+    @Test
+    void writingWithoutTokenReturnsJson401() throws Exception {
+        mockMvc.perform(post("/api/v1/artworks").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Obra\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401));
     }
 
     @Test
-    void protectedRouteRejectsInvalidToken() throws Exception {
+    void writingWithInvalidTokenReturns401() throws Exception {
         when(jwtService.validateToken("bad")).thenReturn(false);
-        mockMvc.perform(get("/api/v1/artworks").header("Authorization", "Bearer bad"))
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer bad")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Obra\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedRouteAcceptsValidToken() throws Exception {
+    void writingWithValidTokenReachesTheController() throws Exception {
         validToken();
-        when(listArtworksUseCase.list(any(), any())).thenReturn(new PageResult<>(List.of(), 0, 20, 0));
-        mockMvc.perform(get("/api/v1/artworks").header("Authorization", "Bearer good"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalItems").value(0));
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer good")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void currentUserRoutesStayProtected() throws Exception {
+        for (String path : List.of("/api/v1/users/me", "/api/v1/users/me/bids")) {
+            mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        }
     }
 
     @Test

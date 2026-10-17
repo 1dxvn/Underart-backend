@@ -100,6 +100,7 @@ class ApiIntegrationTest {
                 .isEqualTo("Amanecer");
 
         mediaFlow(artworkId, artistToken, buyerToken);
+        publicCatalogFlow(artworkId, artistId);
         biddingFlow(artworkId, artistToken, buyerToken, thirdToken);
         String orderId = closingFlow(artistToken, buyerToken, thirdToken);
         paymentFlow(orderId, buyerToken);
@@ -140,6 +141,18 @@ class ApiIntegrationTest {
                 "{\"contentType\":\"video/mp4\"}", 201), "$.kind")).isEqualTo("VIDEO");
     }
 
+    private void publicCatalogFlow(String artworkId, String artistId) throws Exception {
+        call(get("/api/v1/artworks/" + artworkId), null, null, 200);
+        call(get("/api/v1/artworks/" + artworkId + "/media"), null, null, 200);
+        assertThat(total(call(get("/api/v1/artworks?artistId=" + artistId), null, null, 200))).isPositive();
+        call(get("/api/v1/auctions"), null, null, 200);
+        assertThat(body(call(get("/api/v1/users/" + artistId), null, null, 200))).doesNotContain("@test.com");
+        call(post("/api/v1/artworks"), null, "{\"title\":\"x\"}", 401);
+        call(put("/api/v1/artworks/" + artworkId), null, "{\"title\":\"x\"}", 401);
+        call(post("/api/v1/artworks/" + artworkId + "/media/upload-url"), null,
+                "{\"contentType\":\"image/png\",\"sizeBytes\":10}", 401);
+    }
+
     private void biddingFlow(String artworkId, String artistToken, String buyerToken, String thirdToken)
             throws Exception {
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"SIMPLE\",\"basePrice\":100,"
@@ -155,7 +168,8 @@ class ApiIntegrationTest {
         call(post(bids), thirdToken, "{\"amount\":-5}", 400);
         call(post(bids), thirdToken, "{\"amount\":200}", 201);
 
-        String detail = body(call(get("/api/v1/auctions/" + auctionId), buyerToken, null, 200));
+        String detail = body(call(get("/api/v1/auctions/" + auctionId), null, null, 200));
+        call(get(bids), null, null, 401);
         assertThat(JsonPath.<Double>read(detail, "$.currentPrice")).isEqualTo(200.0);
         assertThat(JsonPath.<Integer>read(detail, "$.bidCount")).isEqualTo(2);
         assertThat(this.<Double>read(call(get(bids), buyerToken, null, 200), "$.items[0].amount")).isEqualTo(200.0);

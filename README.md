@@ -53,7 +53,8 @@ Usa siempre `mvn clean` antes de empaquetar: algunos IDEs escriben clases incomp
 
 ## Endpoints
 
-Todas las rutas están bajo `/api/v1` y requieren `Authorization: Bearer <token>`, salvo las marcadas como públicas.
+Todas las rutas están bajo `/api/v1` y requieren `Authorization: Bearer <token>`, salvo las públicas.
+El catálogo se puede consultar sin cuenta; pujar, comprar, crear o editar siempre exige token.
 Los listados son paginados con `?page=0&size=20` y devuelven `{items, page, size, totalItems, totalPages}`.
 
 ### Públicos
@@ -63,11 +64,16 @@ Los listados son paginados con `?page=0&size=20` y devuelven `{items, page, size
 | GET | `/actuator/health` (raíz) | Health check |
 | POST | `/users/register` | Registro |
 | POST | `/auth/login` | Login, devuelve el JWT |
+| GET | `/artworks`, `/artworks/{id}` | Catálogo y detalle de obras |
+| GET | `/artworks/{id}/media` | Imágenes y videos de una obra |
+| GET | `/auctions`, `/auctions/{id}` | Subastas y su precio actual |
+| GET | `/users/{id}` | Perfil público (sin email ni dirección) |
+
+El historial de pujas (`GET /auctions/{id}/bids`) sigue requiriendo token porque muestra quién pujó.
 
 ### Usuarios
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/users/{id}` | Perfil público (sin email ni dirección) |
 | GET | `/users/me` | Mi perfil completo |
 | PUT | `/users/me` | Actualizar nombre, ciudad y dirección |
 | PUT | `/users/me/password` | Cambiar contraseña |
@@ -138,6 +144,5 @@ Ver [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): Render, Neon (Postgres), MongoDB A
 - La IA no se ha verificado con claves reales de Groq y OpenAI. El modelo se configura con `GROQ_MODEL` y `OPENAI_MODEL`.
 - La subida a R2 no se ha probado contra un bucket real.
 - Sin refresh tokens ni límite de intentos de login.
-- Para ver obras y subastas hace falta iniciar sesión; no hay navegación pública.
 - No hay notificaciones por email (por ejemplo, al ganar una subasta).
 - El registro de IA en Mongo y la obra en Postgres no son atómicos: si falla el segundo, queda un registro huérfano.
