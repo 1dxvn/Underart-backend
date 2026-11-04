@@ -77,7 +77,7 @@ El historial de pujas (`GET /auctions/{id}/bids`) sigue requiriendo token porque
 | GET | `/users/me` | Mi perfil completo |
 | PUT | `/users/me` | Actualizar nombre, ciudad y dirección |
 | PUT | `/users/me/password` | Cambiar contraseña |
-| PUT | `/users/me/payment-method` | Registrar método de pago (token) |
+| PUT | `/users/me/payment-method` | Registrar método de pago (id `pm_...` de Stripe, o cualquier texto en modo simulado) |
 | GET | `/users/me/artworks` | Mis obras |
 | GET | `/users/me/auctions` | Subastas de mis obras |
 | GET | `/users/me/bids` | Mis pujas |
@@ -126,7 +126,7 @@ multipart o 200 MB por subida directa; máximo 15 archivos por obra.
 - Una obra solo puede tener una subasta activa a la vez.
 - Una tarea programada cierra cada minuto las subastas vencidas y crea la orden del ganador.
 - Orden: subtotal + envío (15.00) + comisión del 10 % sobre el subtotal.
-- El pago es **simulado**: un token que empiece por `tok_fail` se rechaza (402); cualquier otro se aprueba.
+- Pagos: con `PAYMENT_PROVIDER=simulated` (por defecto) un token que empiece por `tok_fail` se rechaza (402) y cualquier otro se aprueba. Con `PAYMENT_PROVIDER=stripe` se cobra con Stripe (ver la guía de despliegue).
 
 ## Errores
 
@@ -140,7 +140,7 @@ Ver [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): Render, Neon (Postgres), MongoDB A
 
 ## Pendiente (deuda técnica)
 
-- El pago es simulado; falta integrar una pasarela real (por ejemplo, Stripe en modo prueba).
+- Stripe está implementado y probado contra un servidor HTTP simulado, pero no contra la API real de Stripe. Falta probarlo con una clave `sk_test_`.
 - La IA no se ha verificado con claves reales de Groq y OpenAI. El modelo se configura con `GROQ_MODEL` y `OPENAI_MODEL`.
 - La subida a R2 no se ha probado contra un bucket real.
 - Sin refresh tokens ni límite de intentos de login.

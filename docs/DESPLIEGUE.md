@@ -69,7 +69,30 @@ pg_dump --no-owner --no-privileges "postgresql://ANTERIOR" | psql "postgresql://
 Variables: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`.
 Sin ellas la app arranca igual, pero los endpoints de multimedia responden 503.
 
-## 4. Render
+## 4. Pagos con Stripe (opcional)
+
+Por defecto el pago es simulado (`PAYMENT_PROVIDER=simulated`): sirve para demos y no cobra nada.
+Para usar Stripe en **modo de prueba** (sin dinero real):
+
+1. Crea una cuenta en [stripe.com](https://stripe.com) y entra al panel en **modo de prueba** (interruptor "Test mode").
+2. En **Developers → API keys**, copia la **Secret key** (`sk_test_...`). Nunca uses la clave `sk_live_...` hasta tener un negocio verificado.
+3. En Render define `PAYMENT_PROVIDER=stripe` y `STRIPE_SECRET_KEY=sk_test_...`. Opcional: `STRIPE_CURRENCY` (por defecto `usd`).
+   Si activas `stripe` sin clave, la app se niega a arrancar.
+
+Cómo funciona: `PUT /users/me/payment-method` recibe el **id de un PaymentMethod de Stripe** (`pm_...`), que el
+frontend obtiene con Stripe.js sin que los datos de la tarjeta pasen por tu servidor. El backend crea un cliente en
+Stripe, le asocia el método y guarda `cliente:método`. `POST /orders/{id}/pay` cobra con un PaymentIntent
+(el monto en centavos, con clave de idempotencia por orden y método de pago).
+
+Para probar sin frontend, Stripe ofrece métodos de prueba que puedes enviar directamente:
+
+| Método de prueba | Resultado al pagar |
+|---|---|
+| `pm_card_visa` | Aprobado |
+| `pm_card_chargeCustomerFail` | Se guarda bien, pero el cobro es rechazado (402) |
+| `pm_card_threeDSecure2Required` | Requiere autenticación adicional: la orden no se aprueba |
+
+## 5. Render
 
 En el servicio, **Environment**, define:
 
@@ -82,6 +105,7 @@ En el servicio, **Environment**, define:
 | `GROQ_API_KEY`, `OPENAI_API_KEY` | Claves reales de IA |
 | `CORS_ALLOWED_ORIGINS` | Dominios del frontend separados por comas, p. ej. `https://underart.vercel.app,http://localhost:5173`. Admite comodines como `https://*.vercel.app` |
 | `R2_*` | De Cloudflare |
+| `PAYMENT_PROVIDER`, `STRIPE_SECRET_KEY` | `simulated` por defecto; ver la sección de Stripe |
 
 Opcionales: `GROQ_MODEL` (por defecto `llama-3.3-70b-versatile`), `OPENAI_MODEL` (`gpt-4o-mini`),
 `JWT_EXPIRATION_MS` (24 h), `DB_POOL_SIZE` (5), `AUCTIONS_CLOSING_INTERVAL_MS` (60000).
@@ -91,7 +115,7 @@ Si `JWT_SECRET` tiene menos de 32 caracteres, la app se niega a arrancar con un 
 El health check de Render apunta a `/actuator/health` (está en `render.yaml`). Si creaste el servicio
 a mano y no desde el blueprint, configúralo en **Settings → Health Check Path**.
 
-## 5. Desplegar y verificar
+## 6. Desplegar y verificar
 
 1. Haz push a `main`. Render despliega solo y GitHub Actions corre las pruebas.
 2. Comprueba:
