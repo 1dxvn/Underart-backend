@@ -1,13 +1,19 @@
 package com.underart.infrastructure.persistence.jpa.adapter;
 
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.AuctionStatus;
+import com.underart.domain.model.PageQuery;
+import com.underart.domain.model.PageResult;
 import com.underart.domain.port.out.AuctionRepositoryPort;
+import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.jpa.mapper.AuctionMapper;
 import com.underart.infrastructure.persistence.jpa.repository.AuctionJpaRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,6 +36,11 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     }
 
     @Override
+    public Optional<Auction> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(AuctionMapper::toDomain);
+    }
+
+    @Override
     public List<Auction> findByStatus(AuctionStatus status) {
         return repository.findByStatus(status).stream().map(AuctionMapper::toDomain).toList();
     }
@@ -37,5 +48,26 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     @Override
     public List<Auction> findAll() {
         return repository.findAll().stream().map(AuctionMapper::toDomain).toList();
+    }
+
+    @Override
+    public PageResult<Auction> search(AuctionSearchCriteria criteria, PageQuery page) {
+        return PageMapper.toResult(repository.findAll(SearchSpecifications.auctions(criteria),
+                PageMapper.toPageable(page, Sort.by(Sort.Direction.ASC, "endDate"))), AuctionMapper::toDomain);
+    }
+
+    @Override
+    public List<UUID> findExpiredActiveIds(Instant now) {
+        return repository.findIdsByStatusAndEndDateBefore(AuctionStatus.ACTIVE, now);
+    }
+
+    @Override
+    public boolean existsByArtworkId(UUID artworkId) {
+        return repository.existsByArtworkId(artworkId);
+    }
+
+    @Override
+    public boolean existsActiveByArtworkId(UUID artworkId) {
+        return repository.existsByArtworkIdAndStatus(artworkId, AuctionStatus.ACTIVE);
     }
 }

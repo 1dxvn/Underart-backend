@@ -12,11 +12,13 @@ import org.springframework.stereotype.Component;
 public class OpenAiAdapter extends AbstractAiAdapter {
 
     private static final String URL = "https://api.openai.com/v1/chat/completions";
-    private static final String MODEL = "gpt-4o-mini";
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Value("${ai.openai.api-key}")
     private String apiKey;
+
+    @Value("${ai.openai.model:gpt-4o-mini}")
+    private String model;
 
     @Override
     protected String buildUrl() {
@@ -25,7 +27,7 @@ public class OpenAiAdapter extends AbstractAiAdapter {
 
     @Override
     protected Object buildPayload(String prompt) {
-        return Map.of("model", MODEL,
+        return Map.of("model", model,
                 "messages", List.of(Map.of("role", "user", "content", prompt)));
     }
 

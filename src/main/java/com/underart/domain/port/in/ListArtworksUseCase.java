@@ -1,10 +1,11 @@
 package com.underart.domain.port.in;
 
 import com.underart.domain.model.Artwork;
-import java.util.List;
-import java.util.UUID;
+import com.underart.domain.model.ArtworkSearchCriteria;
+import com.underart.domain.model.PageQuery;
+import com.underart.domain.model.PageResult;
 
 public interface ListArtworksUseCase {
 
-    List<Artwork> list(UUID artistId);
+    PageResult<Artwork> list(ArtworkSearchCriteria criteria, PageQuery page);
 }

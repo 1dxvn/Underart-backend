@@ -10,10 +10,11 @@ public record UserResponse(
         String email,
         String city,
         String shippingAddress,
+        boolean hasPaymentMethod,
         Instant createdAt) {
 
     public static UserResponse from(User user) {
         return new UserResponse(user.id(), user.username(), user.email(), user.city(),
-                user.shippingAddress(), user.createdAt());
+                user.shippingAddress(), user.paymentToken() != null, user.createdAt());
     }
 }

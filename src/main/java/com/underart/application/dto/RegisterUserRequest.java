@@ -5,9 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record RegisterUserRequest(
-        @NotBlank String username,
-        @NotBlank @Email String email,
-        @NotBlank @Size(min = 8) String password,
-        String city,
-        String shippingAddress) {
+        @NotBlank @Size(max = 60) String username,
+        @NotBlank @Email @Size(max = 255) String email,
+        @NotBlank @Size(min = 8, max = 100, message = "debe tener entre 8 y 100 caracteres") String password,
+        @Size(max = 255) String city,
+        @Size(max = 255) String shippingAddress) {
 }

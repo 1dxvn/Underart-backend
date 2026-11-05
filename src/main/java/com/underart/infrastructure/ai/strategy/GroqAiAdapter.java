@@ -12,11 +12,13 @@ import org.springframework.stereotype.Component;
 public class GroqAiAdapter extends AbstractAiAdapter {
 
     private static final String URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String MODEL = "llama-3.1-70b-versatile";
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Value("${ai.groq.api-key}")
     private String apiKey;
+
+    @Value("${ai.groq.model:llama-3.3-70b-versatile}")
+    private String model;
 
     @Override
     protected String buildUrl() {
@@ -25,7 +27,7 @@ public class GroqAiAdapter extends AbstractAiAdapter {
 
     @Override
     protected Object buildPayload(String prompt) {
-        return Map.of("model", MODEL,
+        return Map.of("model", model,
                 "messages", List.of(Map.of("role", "user", "content", prompt)));
     }
 

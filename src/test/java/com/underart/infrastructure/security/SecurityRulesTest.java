@@ -1,16 +1,22 @@
 package com.underart.infrastructure.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.underart.domain.model.PageResult;
+import com.underart.domain.port.in.AuthenticateUserUseCase;
 import com.underart.domain.port.in.CreateArtworkUseCase;
+import com.underart.domain.port.in.DeleteArtworkUseCase;
 import com.underart.domain.port.in.FindArtworkUseCase;
 import com.underart.domain.port.in.ListArtworksUseCase;
-import com.underart.domain.port.out.UserRepositoryPort;
+import com.underart.domain.port.in.UpdateArtworkUseCase;
 import com.underart.infrastructure.web.controller.ArtworkController;
 import com.underart.infrastructure.web.controller.AuthController;
 import com.underart.infrastructure.web.controller.RootController;
@@ -26,7 +32,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = {RootController.class, ArtworkController.class, AuthController.class})
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, CurrentUserProvider.class})
 class SecurityRulesTest {
 
     @Autowired
@@ -43,7 +49,17 @@ class SecurityRulesTest {
     @MockBean
     private ListArtworksUseCase listArtworksUseCase;
     @MockBean
-    private UserRepositoryPort userRepository;
+    private UpdateArtworkUseCase updateArtworkUseCase;
+    @MockBean
+    private DeleteArtworkUseCase deleteArtworkUseCase;
+    @MockBean
+    private AuthenticateUserUseCase authenticateUserUseCase;
+
+    private void validToken() {
+        when(jwtService.validateToken("good")).thenReturn(true);
+        when(jwtService.extractEmail("good")).thenReturn("demo@underart.com");
+        when(jwtService.extractUserId("good")).thenReturn(UUID.randomUUID());
+    }
 
     @Test
     void rootIsPublicAndIdentifiesTheApplication() throws Exception {
@@ -55,32 +71,47 @@ class SecurityRulesTest {
     }
 
     @Test
-    void protectedRouteRejectsRequestsWithoutToken() throws Exception {
-        mockMvc.perform(get("/api/v1/artworks")).andExpect(status().isForbidden());
+    void catalogReadIsPublic() throws Exception {
+        when(listArtworksUseCase.list(any(), any())).thenReturn(new PageResult<>(List.of(), 0, 20, 0));
+        mockMvc.perform(get("/api/v1/artworks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItems").value(0));
     }
 
     @Test
-    void protectedRouteRejectsInvalidToken() throws Exception {
+    void writingWithoutTokenReturnsJson401() throws Exception {
+        mockMvc.perform(post("/api/v1/artworks").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Obra\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void writingWithInvalidTokenReturns401() throws Exception {
         when(jwtService.validateToken("bad")).thenReturn(false);
-        mockMvc.perform(get("/api/v1/artworks").header("Authorization", "Bearer bad"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer bad")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Obra\"}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void protectedRouteAcceptsValidToken() throws Exception {
-        when(jwtService.validateToken("good")).thenReturn(true);
-        when(jwtService.extractEmail("good")).thenReturn("demo@underart.com");
-        when(jwtService.extractUserId("good")).thenReturn(UUID.randomUUID());
-        when(listArtworksUseCase.list(null)).thenReturn(List.of());
-        mockMvc.perform(get("/api/v1/artworks").header("Authorization", "Bearer good"))
-                .andExpect(status().isOk());
+    void writingWithValidTokenReachesTheController() throws Exception {
+        validToken();
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer good")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void currentUserRoutesStayProtected() throws Exception {
+        for (String path : List.of("/api/v1/users/me", "/api/v1/users/me/bids")) {
+            mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        }
     }
 
     @Test
     void unknownRouteWithValidTokenReturnsNotFound() throws Exception {
-        when(jwtService.validateToken("good")).thenReturn(true);
-        when(jwtService.extractEmail("good")).thenReturn("demo@underart.com");
-        when(jwtService.extractUserId("good")).thenReturn(UUID.randomUUID());
+        validToken();
         mockMvc.perform(get("/api/v1/nope").header("Authorization", "Bearer good"))
                 .andExpect(status().isNotFound());
     }
@@ -94,14 +125,27 @@ class SecurityRulesTest {
     }
 
     @Test
-    void swaggerUiHtmlPathIsNotBlockedBySecurity() throws Exception {
-        int status = mockMvc.perform(get("/swagger-ui.html")).andReturn().getResponse().getStatus();
-        assertThat(status).isNotEqualTo(403);
+    void corsPreflightAllowsConfiguredOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/artworks")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 
     @Test
-    void apiDocsPathIsNotBlockedBySecurity() throws Exception {
-        int status = mockMvc.perform(get("/v3/api-docs")).andReturn().getResponse().getStatus();
-        assertThat(status).isNotEqualTo(403);
+    void corsPreflightRejectsUnknownOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/artworks")
+                        .header("Origin", "https://evil.example.com")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void documentationAndHealthAreNotBlockedBySecurity() throws Exception {
+        for (String path : List.of("/swagger-ui.html", "/v3/api-docs", "/actuator/health")) {
+            int code = mockMvc.perform(get(path)).andReturn().getResponse().getStatus();
+            assertThat(code).as(path).isNotIn(401, 403);
+        }
     }
 }

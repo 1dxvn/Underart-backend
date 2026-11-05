@@ -1,13 +1,11 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/underart
-    username: postgres
-    password: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/underart}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
   data:
     mongodb:
-      uri: mongodb://localhost:27017/underart
-  jpa:
-    show-sql: true
+      uri: ${MONGO_URI:mongodb://localhost:27017/underart}
 
 jwt:
   secret: ${JWT_SECRET:underart-dev-secret-key-change-me-0123456789abcdef}
@@ -22,5 +20,3 @@ logging:
   level:
     root: INFO
     com.underart: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG

@@ -3,6 +3,12 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: 0
+      idle-timeout: 120000
+      max-lifetime: 240000
+      connection-timeout: 30000
   data:
     mongodb:
       uri: ${MONGO_URI}
