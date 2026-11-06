@@ -8,7 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.InvalidSessionException;
+import com.underart.domain.exception.TooManyRequestsException;
 import com.underart.domain.model.RefreshToken;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.AuthSessionUseCase.Session;
@@ -16,6 +18,7 @@ import com.underart.domain.port.in.AuthenticateUserUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.out.AccessTokenPort;
 import com.underart.domain.port.out.AccessTokenPort.IssuedAccessToken;
+import com.underart.domain.port.out.RateLimiterPort;
 import com.underart.domain.port.out.RefreshTokenRepositoryPort;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,8 +34,9 @@ class AuthSessionServiceTest {
     private final FindUserUseCase users = mock(FindUserUseCase.class);
     private final RefreshTokenRepositoryPort tokens = mock(RefreshTokenRepositoryPort.class);
     private final AccessTokenPort access = mock(AccessTokenPort.class);
+    private final RateLimiterPort limiter = mock(RateLimiterPort.class);
     private final AuthSessionService service =
-            new AuthSessionService(authenticate, users, tokens, access, Duration.ofDays(30));
+            new AuthSessionService(authenticate, users, tokens, access, limiter, Duration.ofDays(30));
     private final User user = new User(UUID.randomUUID(), "ana", "ana@test.com", "hash", null, null, null, Instant.now());
 
     @BeforeEach
@@ -124,5 +128,30 @@ class AuthSessionServiceTest {
         service.logout("desconocido");
 
         verify(tokens).revokeFamily(org.mockito.ArgumentMatchers.eq(token.familyId()), any(Instant.class));
+    }
+
+    @Test
+    void failedLoginCountsAndSuccessResetsTheCounter() {
+        when(limiter.blockedFor(any(), org.mockito.ArgumentMatchers.anyInt(), any())).thenReturn(Optional.empty());
+        when(authenticate.authenticate(" Ana@Test.com ", "mala")).thenThrow(new BusinessRuleException("Credenciales inválidas"));
+        when(authenticate.authenticate("ana@test.com", "password123")).thenReturn(user);
+
+        assertThatThrownBy(() -> service.login(" Ana@Test.com ", "mala")).isInstanceOf(BusinessRuleException.class);
+        service.login("ana@test.com", "password123");
+
+        verify(limiter).hit("login:ana@test.com", AuthSessionService.LOGIN_WINDOW);
+        verify(limiter).reset("login:ana@test.com");
+    }
+
+    @Test
+    void blockedEmailIsRejectedWithoutCheckingThePassword() {
+        when(limiter.blockedFor("login:ana@test.com", AuthSessionService.MAX_FAILED_LOGINS, AuthSessionService.LOGIN_WINDOW))
+                .thenReturn(Optional.of(Duration.ofSeconds(301)));
+
+        assertThatThrownBy(() -> service.login("ana@test.com", "password123"))
+                .isInstanceOf(TooManyRequestsException.class)
+                .hasMessageContaining("6 minutos")
+                .extracting(e -> ((TooManyRequestsException) e).retryAfterSeconds()).isEqualTo(301L);
+        verify(authenticate, never()).authenticate(any(), any());
     }
 }

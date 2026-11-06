@@ -1,6 +1,8 @@
 package com.underart.application.usecase;
 
+import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.InvalidSessionException;
+import com.underart.domain.exception.TooManyRequestsException;
 import com.underart.domain.model.RefreshToken;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.AuthSessionUseCase;
@@ -8,6 +10,7 @@ import com.underart.domain.port.in.AuthenticateUserUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.out.AccessTokenPort;
 import com.underart.domain.port.out.AccessTokenPort.IssuedAccessToken;
+import com.underart.domain.port.out.RateLimiterPort;
 import com.underart.domain.port.out.RefreshTokenRepositoryPort;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,28 +30,45 @@ public class AuthSessionService implements AuthSessionUseCase {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int TOKEN_BYTES = 32;
+    static final int MAX_FAILED_LOGINS = 5;
+    static final Duration LOGIN_WINDOW = Duration.ofMinutes(15);
 
     private final AuthenticateUserUseCase authenticateUserUseCase;
     private final FindUserUseCase findUserUseCase;
     private final RefreshTokenRepositoryPort refreshTokens;
     private final AccessTokenPort accessTokens;
+    private final RateLimiterPort rateLimiter;
     private final Duration refreshTokenTtl;
 
     public AuthSessionService(AuthenticateUserUseCase authenticateUserUseCase,
                               FindUserUseCase findUserUseCase,
                               RefreshTokenRepositoryPort refreshTokens,
                               AccessTokenPort accessTokens,
+                              RateLimiterPort rateLimiter,
                               @Value("${auth.refresh-token-ttl:P30D}") Duration refreshTokenTtl) {
         this.authenticateUserUseCase = authenticateUserUseCase;
         this.findUserUseCase = findUserUseCase;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
+        this.rateLimiter = rateLimiter;
         this.refreshTokenTtl = refreshTokenTtl;
     }
 
     @Override
     public Session login(String email, String password) {
-        User user = authenticateUserUseCase.authenticate(email, password);
+        String key = "login:" + EmailNormalizer.normalize(email);
+        rateLimiter.blockedFor(key, MAX_FAILED_LOGINS, LOGIN_WINDOW).ifPresent(wait -> {
+            throw new TooManyRequestsException("Demasiados intentos fallidos. Inténtalo de nuevo en "
+                    + ((wait.toSeconds() + 59) / 60) + " minutos", wait.toSeconds());
+        });
+        User user;
+        try {
+            user = authenticateUserUseCase.authenticate(email, password);
+        } catch (BusinessRuleException e) {
+            rateLimiter.hit(key, LOGIN_WINDOW);
+            throw e;
+        }
+        rateLimiter.reset(key);
         return openSession(user, UUID.randomUUID()).session();
     }
 

@@ -107,6 +107,7 @@ class ApiIntegrationTest {
         buyNowFlow(artistToken, thirdToken);
         accountFlow(buyerToken, "buyer-" + unique + "@test.com");
         sessionFlow("third-" + unique + "@test.com");
+        lockoutFlow("locked-" + unique + "@test.com");
 
         call(delete("/api/v1/artworks/" + artworkId), artistToken, null, 400);
         String disposable = createArtwork(artistToken, "Boceto");
@@ -263,6 +264,17 @@ class ApiIntegrationTest {
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + other + "\"}", 401);
+    }
+
+    private void lockoutFlow(String email) throws Exception {
+        registerAndLogin(email);
+        String wrong = "{\"email\":\"" + email + "\",\"password\":\"incorrecta1\"}";
+        for (int i = 0; i < 5; i++) {
+            call(post("/api/v1/auth/login"), null, wrong, 400);
+        }
+        MvcResult blocked = call(post("/api/v1/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 429);
+        assertThat(Integer.parseInt(blocked.getResponse().getHeader("Retry-After"))).isPositive();
     }
 
     private String createArtwork(String token, String title) throws Exception {
