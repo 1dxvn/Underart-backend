@@ -10,4 +10,6 @@ public interface ArtworkJpaRepository extends JpaRepository<ArtworkEntity, UUID>
         JpaSpecificationExecutor<ArtworkEntity> {
 
     List<ArtworkEntity> findByArtistId(UUID artistId);
+
+    long countByArtistId(UUID artistId);
 }

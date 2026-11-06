@@ -8,6 +8,7 @@ import com.underart.application.dto.ChangePasswordRequest;
 import com.underart.application.dto.OrderResponse;
 import com.underart.application.dto.PageResponse;
 import com.underart.application.dto.PaymentMethodRequest;
+import com.underart.application.dto.SellerStatsResponse;
 import com.underart.application.dto.UpdateProfileRequest;
 import com.underart.application.dto.UserResponse;
 import com.underart.domain.model.ArtworkSearchCriteria;
@@ -21,6 +22,7 @@ import com.underart.domain.port.in.ListArtworksUseCase;
 import com.underart.domain.port.in.ListAuctionsUseCase;
 import com.underart.domain.port.in.ListBidsUseCase;
 import com.underart.domain.port.in.ListOrdersUseCase;
+import com.underart.domain.port.in.SellerStatsUseCase;
 import com.underart.domain.port.in.UpdatePaymentMethodUseCase;
 import com.underart.domain.port.in.UpdateUserProfileUseCase;
 import com.underart.domain.port.in.UpdateUserProfileUseCase.UpdateProfileCommand;
@@ -52,6 +54,7 @@ public class CurrentUserController {
     private final ListAuctionsUseCase listAuctionsUseCase;
     private final ListActivityUseCase listActivityUseCase;
     private final FavoritesUseCase favoritesUseCase;
+    private final SellerStatsUseCase sellerStatsUseCase;
 
     @GetMapping
     public ResponseEntity<UserResponse> me() {
@@ -111,6 +114,11 @@ public class CurrentUserController {
         UUID me = currentUser.currentUserId();
         return ResponseEntity.ok(PageResponse.from(listAuctionsUseCase.list(
                 AuctionSearchCriteria.byArtist(me), PageQuery.of(page, size)), AuctionResponse::from));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<SellerStatsResponse> stats() {
+        return ResponseEntity.ok(SellerStatsResponse.from(sellerStatsUseCase.statsFor(currentUser.currentUserId())));
     }
 
     @GetMapping("/favorites")

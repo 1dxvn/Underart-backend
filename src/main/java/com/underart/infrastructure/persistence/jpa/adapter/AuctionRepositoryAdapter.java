@@ -69,4 +69,9 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     public boolean existsActiveByArtworkId(UUID artworkId) {
         return repository.existsByArtworkIdAndStatus(artworkId, AuctionStatus.ACTIVE);
     }
+
+    @Override
+    public long countActiveByArtistId(UUID artistId) {
+        return repository.countByArtworkArtistIdAndStatus(artistId, AuctionStatus.ACTIVE);
+    }
 }

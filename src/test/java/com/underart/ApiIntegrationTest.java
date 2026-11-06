@@ -113,6 +113,7 @@ class ApiIntegrationTest {
         reviewFlow(orderId, artistId, artistToken, buyerToken);
         buyNowFlow(artistToken, thirdToken);
         searchFlow(artistId);
+        statsFlow(artistToken, buyerToken);
         notificationsFlow(buyerToken, artistToken);
         accountFlow(buyerToken, "buyer-" + unique + "@test.com");
         sessionFlow("third-" + unique + "@test.com");
@@ -403,6 +404,19 @@ class ApiIntegrationTest {
         call(get(byArtist + "&sort=passwordHash,asc"), null, null, 400);
         assertThat(total(call(get("/api/v1/auctions?artistId=" + artistId + "&minPrice=100&sort=basePrice,desc"),
                 null, null, 200))).isEqualTo(3);
+    }
+
+    private void statsFlow(String artistToken, String buyerToken) throws Exception {
+        String artist = body(call(get("/api/v1/users/me/stats"), artistToken, null, 200));
+        assertThat(JsonPath.<Integer>read(artist, "$.artworks")).isEqualTo(3);
+        assertThat(JsonPath.<Integer>read(artist, "$.activeAuctions")).isEqualTo(1);
+        assertThat(JsonPath.<Integer>read(artist, "$.salesCount")).isEqualTo(2);
+        assertThat(JsonPath.<Double>read(artist, "$.revenue")).isEqualTo(250.0);
+        assertThat(JsonPath.<Integer>read(artist, "$.purchasesCount")).isZero();
+        assertThat(JsonPath.<Double>read(artist, "$.averageRating")).isEqualTo(5.0);
+        assertThat(this.<Integer>read(call(get("/api/v1/users/me/stats"), buyerToken, null, 200), "$.purchasesCount"))
+                .isEqualTo(1);
+        call(get("/api/v1/users/me/stats"), null, null, 401);
     }
 
     private void lockoutFlow(String email) throws Exception {

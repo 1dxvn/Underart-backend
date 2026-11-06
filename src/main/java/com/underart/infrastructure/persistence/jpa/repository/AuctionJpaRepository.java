@@ -28,4 +28,6 @@ public interface AuctionJpaRepository extends JpaRepository<AuctionEntity, UUID>
     boolean existsByArtworkId(UUID artworkId);
 
     boolean existsByArtworkIdAndStatus(UUID artworkId, AuctionStatus status);
+
+    long countByArtworkArtistIdAndStatus(UUID artistId, AuctionStatus status);
 }

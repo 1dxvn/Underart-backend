@@ -24,4 +24,6 @@ public interface ArtworkRepositoryPort {
     void deleteById(UUID id);
 
     List<Artwork> findAllByIds(Collection<UUID> ids);
+
+    long countByArtistId(UUID artistId);
 }

@@ -55,6 +55,11 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     }
 
     @Override
+    public long countByArtistId(UUID artistId) {
+        return repository.countByArtistId(artistId);
+    }
+
+    @Override
     public List<Artwork> findAllByIds(Collection<UUID> ids) {
         if (ids.isEmpty()) {
             return List.of();

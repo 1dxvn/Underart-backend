@@ -7,6 +7,8 @@ import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.jpa.mapper.OrderMapper;
 import com.underart.infrastructure.persistence.jpa.repository.OrderJpaRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
@@ -48,5 +50,17 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     @Override
     public boolean existsByAuctionId(UUID auctionId) {
         return repository.existsByAuctionId(auctionId);
+    }
+
+    @Override
+    public long countByWinnerId(UUID winnerId) {
+        return repository.countByWinnerId(winnerId);
+    }
+
+    @Override
+    public SalesStats salesStatsForSeller(UUID sellerId) {
+        Object[] row = repository.salesStatsForSeller(sellerId).get(0);
+        BigDecimal revenue = row[1] instanceof BigDecimal value ? value : new BigDecimal(row[1].toString());
+        return new SalesStats(((Number) row[0]).longValue(), revenue.setScale(2, RoundingMode.HALF_UP));
     }
 }

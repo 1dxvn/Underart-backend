@@ -3,6 +3,7 @@ package com.underart.domain.port.out;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PageResult;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,4 +18,11 @@ public interface OrderRepositoryPort {
     PageResult<Order> findBySellerId(UUID sellerId, PageQuery page);
 
     boolean existsByAuctionId(UUID auctionId);
+
+    long countByWinnerId(UUID winnerId);
+
+    SalesStats salesStatsForSeller(UUID sellerId);
+
+    record SalesStats(long count, BigDecimal paidRevenue) {
+    }
 }
