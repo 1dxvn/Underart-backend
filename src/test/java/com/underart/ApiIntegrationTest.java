@@ -108,6 +108,7 @@ class ApiIntegrationTest {
         paymentFlow(orderId, buyerToken);
         buyNowFlow(artistToken, thirdToken);
         searchFlow(artistId);
+        notificationsFlow(buyerToken, artistToken);
         accountFlow(buyerToken, "buyer-" + unique + "@test.com");
         sessionFlow("third-" + unique + "@test.com");
         lockoutFlow("locked-" + unique + "@test.com");
@@ -284,6 +285,15 @@ class ApiIntegrationTest {
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + other + "\"}", 401);
+    }
+
+    private void notificationsFlow(String buyerToken, String artistToken) throws Exception {
+        String base = "/api/v1/users/me/notifications";
+        call(get(base), null, null, 401);
+        call(post(base + "/000000000000000000000000/read"), buyerToken, null, 404);
+        call(post(base + "/read-all"), buyerToken, null, 204);
+        assertThat(this.<Integer>read(call(get(base + "/unread-count"), buyerToken, null, 200), "$.count")).isZero();
+        assertThat(total(call(get(base + "?unreadOnly=true"), buyerToken, null, 200))).isZero();
     }
 
     private void searchFlow(String artistId) throws Exception {
