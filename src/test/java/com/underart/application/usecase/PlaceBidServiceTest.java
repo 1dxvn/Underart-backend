@@ -110,4 +110,24 @@ class PlaceBidServiceTest {
                 new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
         assertThat(service.place(auctionId, buyerId, new BigDecimal("210.00")).amount()).isEqualByComparingTo("210");
     }
+
+    @Test
+    void lastMinuteBidExtendsTheAuction() {
+        givenAuction(Instant.now().minusSeconds(3600), Instant.now().plusSeconds(30));
+
+        service.place(auctionId, buyerId, new BigDecimal("150"));
+
+        org.mockito.ArgumentCaptor<Auction> saved = org.mockito.ArgumentCaptor.forClass(Auction.class);
+        verify(auctions).save(saved.capture());
+        assertThat(saved.getValue().endDate()).isAfter(Instant.now().plusSeconds(110));
+    }
+
+    @Test
+    void earlyBidDoesNotTouchTheEndDate() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+
+        service.place(auctionId, buyerId, new BigDecimal("150"));
+
+        verify(auctions, never()).save(any());
+    }
 }

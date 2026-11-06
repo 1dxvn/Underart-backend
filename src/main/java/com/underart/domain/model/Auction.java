@@ -30,4 +30,9 @@ public record Auction(
         return new Auction(id, artworkId, type, newStatus, basePrice, immediatePurchasePrice,
                 startDate, endDate);
     }
+
+    public Auction withEndDate(Instant newEndDate) {
+        return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice,
+                startDate, newEndDate);
+    }
 }

@@ -3,6 +3,7 @@ package com.underart.application.usecase;
 import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.InvalidBidException;
 import com.underart.domain.exception.ResourceNotFoundException;
+import com.underart.domain.model.AntiSnipingPolicy;
 import com.underart.domain.model.Artwork;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.Bid;
@@ -54,6 +55,11 @@ public class PlaceBidService implements PlaceBidUseCase {
             throw new InvalidBidException("La puja mínima es " + minimum.toPlainString());
         }
         Bid saved = bidRepository.save(new Bid(UUID.randomUUID(), auctionId, buyerId, amount, now));
+        AntiSnipingPolicy.extendedEnd(auction.endDate(), now).ifPresent(newEnd -> {
+            auctionRepository.save(auction.withEndDate(newEnd));
+            activityLogRepository.log("AUCTION_EXTENDED", "Subasta " + auctionId + " prorrogada por una puja de último momento",
+                    buyerId, Map.of("auctionId", auctionId.toString(), "newEndDate", newEnd.toString()));
+        });
         activityLogRepository.log("BID_PLACED", "Puja de " + amount + " en subasta " + auctionId,
                 buyerId, Map.of("amount", amount, "auctionId", auctionId.toString()));
         return saved;

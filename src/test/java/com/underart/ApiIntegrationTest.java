@@ -59,6 +59,8 @@ class ApiIntegrationTest {
     private MockMvc mvc;
     @Autowired
     private CloseExpiredAuctionsUseCase closer;
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
     @MockBean
     private GroqAiAdapter groq;
     @MockBean
@@ -188,11 +190,17 @@ class ApiIntegrationTest {
     private String closingFlow(String artistToken, String buyerToken, String thirdToken) throws Exception {
         String artworkId = createArtwork(artistToken, "Nocturno");
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"SIMPLE\",\"basePrice\":100,"
-                + "\"endDate\":\"" + Instant.now().plusSeconds(2) + "\"}";
+                + "\"endDate\":\"" + Instant.now().plusSeconds(60) + "\"}";
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
         call(post("/api/v1/auctions/" + auctionId + "/bids"), buyerToken, "{\"amount\":250}", 201);
 
-        Thread.sleep(2500);
+        Instant extendedEnd = Instant.parse(read(call(get("/api/v1/auctions/" + auctionId), buyerToken, null, 200),
+                "$.auction.endDate"));
+        assertThat(extendedEnd).isAfter(Instant.now().plusSeconds(100));
+        assertThat(closer.findExpired()).doesNotContain(UUID.fromString(auctionId));
+
+        jdbc.update("update auctions set end_date = ? where id = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(1)), UUID.fromString(auctionId));
         assertThat(closer.findExpired()).contains(UUID.fromString(auctionId));
         String orderId = closer.close(UUID.fromString(auctionId)).orElseThrow().id().toString();
         assertThat(closer.close(UUID.fromString(auctionId))).isEmpty();
