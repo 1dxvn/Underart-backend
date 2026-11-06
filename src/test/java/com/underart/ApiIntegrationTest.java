@@ -129,6 +129,10 @@ class ApiIntegrationTest {
         assertThat(this.<String>read(call(get("/actuator/health"), null, null, 200), "$.status")).isEqualTo("UP");
         assertThat(this.<String>read(call(get("/actuator/info"), null, null, 200), "$.app.name"))
                 .isEqualTo("Underart Backend");
+        String openApi = body(call(get("/v3/api-docs"), null, null, 200));
+        assertThat(JsonPath.<java.util.List<String>>read(openApi, "$.tags[*].name"))
+                .contains("Autenticación", "Obras", "Subastas", "Pujas", "Órdenes", "Notificaciones");
+        assertThat(JsonPath.<String>read(openApi, "$.components.securitySchemes.bearerAuth.scheme")).isEqualTo("bearer");
     }
 
     private void mediaFlow(String artworkId, String artistToken, String buyerToken) throws Exception {
@@ -468,7 +472,7 @@ class ApiIntegrationTest {
     }
 
     private static String body(MvcResult result) throws Exception {
-        return result.getResponse().getContentAsString();
+        return result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private <T> T read(MvcResult result, String path) throws Exception {
