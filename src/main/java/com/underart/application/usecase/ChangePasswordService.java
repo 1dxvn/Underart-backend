@@ -1,6 +1,7 @@
 package com.underart.application.usecase;
 
 import com.underart.domain.exception.BusinessRuleException;
+import com.underart.domain.model.PasswordPolicy;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.ChangePasswordUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
@@ -23,6 +24,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
 
     @Override
     public void change(UUID userId, String currentPassword, String newPassword) {
+        PasswordPolicy.require(newPassword);
         User user = findUserUseCase.findById(userId);
         if (!passwordHasher.matches(currentPassword, user.passwordHash())) {
             throw new BusinessRuleException("La contraseña actual no es correcta");
