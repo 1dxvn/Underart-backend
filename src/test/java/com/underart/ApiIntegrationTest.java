@@ -103,6 +103,7 @@ class ApiIntegrationTest {
 
         mediaFlow(artworkId, artistToken, buyerToken);
         publicCatalogFlow(artworkId, artistId);
+        favoritesFlow(artworkId, buyerToken, thirdToken);
         biddingFlow(artworkId, artistToken, buyerToken, thirdToken);
         String orderId = closingFlow(artistToken, buyerToken, thirdToken);
         paymentFlow(orderId, buyerToken);
@@ -304,6 +305,29 @@ class ApiIntegrationTest {
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + other + "\"}", 401);
+    }
+
+    private void favoritesFlow(String artworkId, String buyerToken, String thirdToken) throws Exception {
+        String favorite = "/api/v1/artworks/" + artworkId + "/favorite";
+        call(post(favorite), null, null, 401);
+        call(post(favorite), buyerToken, null, 204);
+        call(post(favorite), buyerToken, null, 204);
+        call(post(favorite), thirdToken, null, 204);
+        call(post("/api/v1/artworks/" + UUID.randomUUID() + "/favorite"), buyerToken, null, 404);
+
+        String asBuyer = body(call(get("/api/v1/artworks/" + artworkId), buyerToken, null, 200));
+        assertThat(JsonPath.<Integer>read(asBuyer, "$.favoritesCount")).isEqualTo(2);
+        assertThat(JsonPath.<Boolean>read(asBuyer, "$.favorited")).isTrue();
+        assertThat(this.<Boolean>read(call(get("/api/v1/artworks/" + artworkId), null, null, 200), "$.favorited"))
+                .isFalse();
+        assertThat(this.<String>read(call(get("/api/v1/users/me/favorites"), buyerToken, null, 200),
+                "$.items[0].id")).isEqualTo(artworkId);
+
+        call(delete(favorite), thirdToken, null, 204);
+        call(delete(favorite), thirdToken, null, 204);
+        assertThat(this.<Integer>read(call(get("/api/v1/artworks/" + artworkId), null, null, 200), "$.favoritesCount"))
+                .isEqualTo(1);
+        assertThat(total(call(get("/api/v1/users/me/favorites"), thirdToken, null, 200))).isZero();
     }
 
     private void notificationsFlow(String buyerToken, String artistToken) throws Exception {

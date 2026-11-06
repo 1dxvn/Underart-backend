@@ -13,6 +13,7 @@ import com.underart.domain.model.PageQuery;
 import com.underart.domain.port.in.CreateArtworkUseCase;
 import com.underart.domain.port.in.CreateArtworkUseCase.CreateArtworkCommand;
 import com.underart.domain.port.in.DeleteArtworkUseCase;
+import com.underart.domain.port.in.FavoritesUseCase;
 import com.underart.domain.port.in.FindArtworkUseCase;
 import com.underart.domain.port.in.ListArtworksUseCase;
 import com.underart.domain.port.in.UpdateArtworkUseCase;
@@ -52,6 +53,7 @@ public class ArtworkController {
     private final ListArtworksUseCase listArtworksUseCase;
     private final UpdateArtworkUseCase updateArtworkUseCase;
     private final DeleteArtworkUseCase deleteArtworkUseCase;
+    private final FavoritesUseCase favoritesUseCase;
 
     @PostMapping
     public ResponseEntity<ArtworkResponse> create(@Valid @RequestBody CreateArtworkRequest req) {
@@ -81,7 +83,20 @@ public class ArtworkController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ArtworkDetailResponse> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ArtworkDetailResponse.from(findArtworkUseCase.findDetails(id)));
+        return ResponseEntity.ok(ArtworkDetailResponse.from(
+                findArtworkUseCase.findDetails(id, currentUser.currentUserIdIfPresent().orElse(null))));
+    }
+
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<Void> addFavorite(@PathVariable UUID id) {
+        favoritesUseCase.add(currentUser.currentUserId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    public ResponseEntity<Void> removeFavorite(@PathVariable UUID id) {
+        favoritesUseCase.remove(currentUser.currentUserId(), id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
@@ -89,7 +104,7 @@ public class ArtworkController {
                                                   @Valid @RequestBody UpdateArtworkRequest req) {
         updateArtworkUseCase.update(new UpdateArtworkCommand(id, currentUser.currentUserId(), req.title(),
                 req.description(), req.technique(), req.weightKg(), req.dimensions()));
-        FindArtworkUseCase.ArtworkDetails details = findArtworkUseCase.findDetails(id);
+        FindArtworkUseCase.ArtworkDetails details = findArtworkUseCase.findDetails(id, currentUser.currentUserId());
         return ResponseEntity.ok(ArtworkResponse.from(details.artwork(), details.coverUrl()));
     }
 

@@ -9,8 +9,9 @@ public interface FindArtworkUseCase {
 
     Artwork findById(UUID id);
 
-    ArtworkDetails findDetails(UUID id);
+    ArtworkDetails findDetails(UUID id, UUID viewerId);
 
-    record ArtworkDetails(Artwork artwork, String coverUrl, List<ArtworkMedia> media) {
+    record ArtworkDetails(Artwork artwork, String coverUrl, List<ArtworkMedia> media, long favoritesCount,
+                          boolean favorited) {
     }
 }

@@ -54,6 +54,8 @@ class SecurityRulesTest {
     private DeleteArtworkUseCase deleteArtworkUseCase;
     @MockBean
     private AuthSessionUseCase authSessionUseCase;
+    @MockBean
+    private com.underart.domain.port.in.FavoritesUseCase favoritesUseCase;
 
     private void validToken() {
         when(jwtService.validateToken("good")).thenReturn(true);

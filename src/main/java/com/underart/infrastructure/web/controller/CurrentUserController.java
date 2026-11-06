@@ -14,6 +14,7 @@ import com.underart.domain.model.ArtworkSearchCriteria;
 import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.port.in.ChangePasswordUseCase;
+import com.underart.domain.port.in.FavoritesUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.in.ListActivityUseCase;
 import com.underart.domain.port.in.ListArtworksUseCase;
@@ -50,6 +51,7 @@ public class CurrentUserController {
     private final ListArtworksUseCase listArtworksUseCase;
     private final ListAuctionsUseCase listAuctionsUseCase;
     private final ListActivityUseCase listActivityUseCase;
+    private final FavoritesUseCase favoritesUseCase;
 
     @GetMapping
     public ResponseEntity<UserResponse> me() {
@@ -109,6 +111,13 @@ public class CurrentUserController {
         UUID me = currentUser.currentUserId();
         return ResponseEntity.ok(PageResponse.from(listAuctionsUseCase.list(
                 AuctionSearchCriteria.byArtist(me), PageQuery.of(page, size)), AuctionResponse::from));
+    }
+
+    @GetMapping("/favorites")
+    public ResponseEntity<PageResponse<ArtworkResponse>> favorites(@RequestParam(required = false) Integer page,
+                                                                   @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.from(favoritesUseCase.list(currentUser.currentUserId(),
+                PageQuery.of(page, size)), ArtworkResponse::from));
     }
 
     @GetMapping("/activity")

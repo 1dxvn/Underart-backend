@@ -7,6 +7,7 @@ import com.underart.domain.model.MediaKind;
 import com.underart.domain.port.in.FindArtworkUseCase;
 import com.underart.domain.port.out.ArtworkMediaRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
+import com.underart.domain.port.out.FavoriteRepositoryPort;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class FindArtworkService implements FindArtworkUseCase {
 
     private final ArtworkRepositoryPort artworkRepository;
     private final ArtworkMediaRepositoryPort mediaRepository;
+    private final FavoriteRepositoryPort favorites;
 
     @Override
     public Artwork findById(UUID id) {
@@ -26,11 +28,12 @@ public class FindArtworkService implements FindArtworkUseCase {
     }
 
     @Override
-    public ArtworkDetails findDetails(UUID id) {
+    public ArtworkDetails findDetails(UUID id, UUID viewerId) {
         Artwork artwork = findById(id);
         List<ArtworkMedia> media = mediaRepository.findByArtworkId(id);
         String cover = media.stream().filter(m -> m.kind() == MediaKind.IMAGE).map(ArtworkMedia::url)
                 .findFirst().orElse(null);
-        return new ArtworkDetails(artwork, cover, media);
+        return new ArtworkDetails(artwork, cover, media, favorites.countByArtwork(id),
+                viewerId != null && favorites.exists(viewerId, id));
     }
 }
