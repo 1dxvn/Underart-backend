@@ -9,6 +9,7 @@ public interface FindAuctionUseCase {
 
     AuctionDetails findById(UUID id);
 
-    record AuctionDetails(Auction auction, Bid highestBid, long bidCount, BigDecimal currentPrice) {
+    record AuctionDetails(Auction auction, Bid highestBid, long bidCount, BigDecimal currentPrice,
+                          BigDecimal minimumNextBid) {
     }
 }

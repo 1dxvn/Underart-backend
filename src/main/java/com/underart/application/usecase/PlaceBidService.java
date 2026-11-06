@@ -6,6 +6,7 @@ import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.model.Artwork;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.Bid;
+import com.underart.domain.model.BidIncrementPolicy;
 import com.underart.domain.port.in.PlaceBidUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
@@ -47,14 +48,11 @@ public class PlaceBidService implements PlaceBidUseCase {
         if (artwork.artistId().equals(buyerId)) {
             throw new BusinessRuleException("No puedes pujar en tu propia obra");
         }
-        if (amount.compareTo(auction.basePrice()) <= 0) {
-            throw new InvalidBidException("La puja debe superar el precio base");
+        BigDecimal highest = bidRepository.findHighestBid(auctionId).map(Bid::amount).orElse(null);
+        BigDecimal minimum = BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest);
+        if (amount.compareTo(minimum) < 0) {
+            throw new InvalidBidException("La puja mínima es " + minimum.toPlainString());
         }
-        bidRepository.findHighestBid(auctionId).ifPresent(highest -> {
-            if (amount.compareTo(highest.amount()) <= 0) {
-                throw new InvalidBidException("La puja debe superar la puja actual");
-            }
-        });
         Bid saved = bidRepository.save(new Bid(UUID.randomUUID(), auctionId, buyerId, amount, now));
         activityLogRepository.log("BID_PLACED", "Puja de " + amount + " en subasta " + auctionId,
                 buyerId, Map.of("amount", amount, "auctionId", auctionId.toString()));

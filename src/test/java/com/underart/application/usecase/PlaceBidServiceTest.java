@@ -85,7 +85,7 @@ class PlaceBidServiceTest {
         when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
                 new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("200")))
-                .isInstanceOf(InvalidBidException.class).hasMessage("La puja debe superar la puja actual");
+                .isInstanceOf(InvalidBidException.class).hasMessage("La puja mínima es 210.00");
     }
 
     @Test
@@ -95,5 +95,19 @@ class PlaceBidServiceTest {
         assertThat(bid.amount()).isEqualByComparingTo("150");
         assertThat(bid.buyerId()).isEqualTo(buyerId);
         verify(log).log(any(), any(), any(), any());
+    }
+
+    @Test
+    void firstBidMayEqualTheBasePrice() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        assertThat(service.place(auctionId, buyerId, new BigDecimal("100.00")).amount()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void acceptsBidExactlyAtTheMinimumIncrement() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
+        assertThat(service.place(auctionId, buyerId, new BigDecimal("210.00")).amount()).isEqualByComparingTo("210");
     }
 }

@@ -176,6 +176,8 @@ class ApiIntegrationTest {
         call(get(bids), null, null, 401);
         assertThat(JsonPath.<Double>read(detail, "$.currentPrice")).isEqualTo(200.0);
         assertThat(JsonPath.<Integer>read(detail, "$.bidCount")).isEqualTo(2);
+        assertThat(JsonPath.<Double>read(detail, "$.minimumNextBid")).isEqualTo(210.0);
+        call(post(bids), buyerToken, "{\"amount\":209.99}", 400);
         assertThat(this.<Double>read(call(get(bids), buyerToken, null, 200), "$.items[0].amount")).isEqualTo(200.0);
         assertThat(total(call(get("/api/v1/users/me/bids"), buyerToken, null, 200))).isEqualTo(1);
 

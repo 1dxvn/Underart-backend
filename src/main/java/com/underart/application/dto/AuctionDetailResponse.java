@@ -7,10 +7,12 @@ public record AuctionDetailResponse(
         AuctionResponse auction,
         BigDecimal currentPrice,
         long bidCount,
-        BidResponse highestBid) {
+        BidResponse highestBid,
+        BigDecimal minimumNextBid) {
 
     public static AuctionDetailResponse from(AuctionDetails details) {
         return new AuctionDetailResponse(AuctionResponse.from(details.auction()), details.currentPrice(),
-                details.bidCount(), details.highestBid() == null ? null : BidResponse.from(details.highestBid()));
+                details.bidCount(), details.highestBid() == null ? null : BidResponse.from(details.highestBid()),
+                details.minimumNextBid());
     }
 }
