@@ -269,6 +269,13 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<String>read(shipped, "$.trackingNumber")).isEqualTo("SV-123456");
         assertThat(JsonPath.<String>read(shipped, "$.shippedAt")).isNotNull();
         call(post(ship), artistToken, body, 400);
+
+        String confirm = "/api/v1/orders/" + orderId + "/confirm-delivery";
+        call(post(confirm), artistToken, null, 403);
+        String delivered = body(call(post(confirm), buyerToken, null, 200));
+        assertThat(JsonPath.<String>read(delivered, "$.shippingStatus")).isEqualTo("DELIVERED");
+        assertThat(JsonPath.<String>read(delivered, "$.deliveredAt")).isNotNull();
+        call(post(confirm), buyerToken, null, 400);
     }
 
     private void buyNowFlow(String artistToken, String thirdToken) throws Exception {

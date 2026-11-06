@@ -52,4 +52,10 @@ public class OrderController {
         return ResponseEntity.ok(OrderResponse.from(orderFulfillmentUseCase.ship(id, currentUser.currentUserId(),
                 req.carrier(), req.trackingNumber())));
     }
+
+    @PostMapping("/orders/{id}/confirm-delivery")
+    public ResponseEntity<OrderResponse> confirmDelivery(@PathVariable UUID id) {
+        return ResponseEntity.ok(OrderResponse.from(
+                orderFulfillmentUseCase.confirmDelivery(id, currentUser.currentUserId())));
+    }
 }

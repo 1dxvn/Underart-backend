@@ -32,6 +32,18 @@ public class OrderFulfillmentService implements OrderFulfillmentUseCase {
         return shipped;
     }
 
+    @Override
+    public Order confirmDelivery(UUID orderId, UUID buyerId) {
+        Order order = find(orderId);
+        if (!order.winnerId().equals(buyerId)) {
+            throw new ForbiddenOperationException("Solo el comprador puede confirmar la entrega");
+        }
+        Order delivered = orderRepository.save(order.markDelivered(Instant.now()));
+        activityLogRepository.log("ORDER_DELIVERED", "Orden " + orderId + " entregada", buyerId,
+                Map.of("orderId", orderId.toString()));
+        return delivered;
+    }
+
     private Order find(UUID orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));

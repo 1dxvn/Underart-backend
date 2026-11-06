@@ -6,4 +6,6 @@ import java.util.UUID;
 public interface OrderFulfillmentUseCase {
 
     Order ship(UUID orderId, UUID sellerId, String carrier, String trackingNumber);
+
+    Order confirmDelivery(UUID orderId, UUID buyerId);
 }

@@ -53,4 +53,14 @@ class OrderFulfillmentServiceTest {
                 .isInstanceOf(ForbiddenOperationException.class);
         verify(orders, never()).save(any());
     }
+
+    @Test
+    void buyerConfirmsDeliveryOfAShippedOrder() {
+        Order shipped = paid.markShipped("DHL", "123", java.time.Instant.now());
+        when(orders.findById(shipped.id())).thenReturn(Optional.of(shipped));
+
+        assertThat(service.confirmDelivery(shipped.id(), buyerId).shippingStatus()).isEqualTo(ShippingStatus.DELIVERED);
+        assertThatThrownBy(() -> service.confirmDelivery(shipped.id(), sellerId))
+                .isInstanceOf(ForbiddenOperationException.class);
+    }
 }
