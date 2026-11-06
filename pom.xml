@@ -15,6 +15,7 @@
     <artifactId>underart-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>underart-backend</name>
+    <description>API REST del marketplace de subastas de arte Underart</description>
 
     <properties>
         <java.version>17</java.version>
@@ -197,6 +198,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
                     <excludes>
                         <exclude>

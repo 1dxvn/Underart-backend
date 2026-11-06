@@ -55,7 +55,7 @@ public class SecurityConfig {
                                 "/api/v1/artworks/*/media", "/api/v1/auctions", "/api/v1/auctions/*",
                                 "/api/v1/users/*").permitAll()
                         .requestMatchers("/", "/api/v1/users/register", "/api/v1/auth/**",
-                                "/actuator/health", "/actuator/health/**",
+                                "/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthFilter(jwtService),

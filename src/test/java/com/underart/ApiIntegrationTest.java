@@ -115,6 +115,8 @@ class ApiIntegrationTest {
         assertThat(this.<String>read(call(post("/api/v1/ai/valuations"), artistToken,
                 "{\"title\":\"Retrato\",\"technique\":\"Óleo\"}", 200), "$.provider")).isEqualTo("groq");
         assertThat(this.<String>read(call(get("/actuator/health"), null, null, 200), "$.status")).isEqualTo("UP");
+        assertThat(this.<String>read(call(get("/actuator/info"), null, null, 200), "$.app.name"))
+                .isEqualTo("Underart Backend");
     }
 
     private void mediaFlow(String artworkId, String artistToken, String buyerToken) throws Exception {
