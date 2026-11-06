@@ -5,6 +5,7 @@ import com.underart.domain.exception.AiProviderException;
 import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.ForbiddenOperationException;
 import com.underart.domain.exception.InvalidBidException;
+import com.underart.domain.exception.InvalidSessionException;
 import com.underart.domain.exception.MediaStorageException;
 import com.underart.domain.exception.PaymentFailedException;
 import com.underart.domain.exception.ResourceNotFoundException;
@@ -64,6 +65,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleStorage(MediaStorageException ex) {
         log.error("Error de almacenamiento: {}", ex.getMessage(), ex.getCause());
         return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidSessionException.class)
+    public ResponseEntity<ApiError> handleInvalidSession(InvalidSessionException ex) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
     @ExceptionHandler(AuthenticationException.class)

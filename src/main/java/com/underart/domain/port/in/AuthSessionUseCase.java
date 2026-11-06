@@ -6,6 +6,8 @@ public interface AuthSessionUseCase {
 
     Session login(String email, String password);
 
+    Session refresh(String refreshToken);
+
     record Session(User user, String accessToken, long expiresInSeconds, String refreshToken) {
     }
 }

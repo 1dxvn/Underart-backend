@@ -106,6 +106,7 @@ class ApiIntegrationTest {
         paymentFlow(orderId, buyerToken);
         buyNowFlow(artistToken, thirdToken);
         accountFlow(buyerToken, "buyer-" + unique + "@test.com");
+        sessionFlow("third-" + unique + "@test.com");
 
         call(delete("/api/v1/artworks/" + artworkId), artistToken, null, 400);
         String disposable = createArtwork(artistToken, "Boceto");
@@ -236,6 +237,21 @@ class ApiIntegrationTest {
                 "{\"currentPassword\":\"password123\",\"newPassword\":\"nueva-clave-123\"}", 204);
         call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"nueva-clave-123\"}", 200);
+    }
+
+    private void sessionFlow(String email) throws Exception {
+        String login = body(call(post("/api/v1/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200));
+        String firstRefresh = JsonPath.read(login, "$.refreshToken");
+
+        String renewed = body(call(post("/api/v1/auth/refresh"), null,
+                "{\"refreshToken\":\"" + firstRefresh + "\"}", 200));
+        String secondRefresh = JsonPath.read(renewed, "$.refreshToken");
+        assertThat(secondRefresh).isNotEqualTo(firstRefresh);
+        call(get("/api/v1/users/me"), JsonPath.read(renewed, "$.accessToken"), null, 200);
+
+        call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + firstRefresh + "\"}", 401);
+        call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + secondRefresh + "\"}", 401);
     }
 
     private String createArtwork(String token, String title) throws Exception {

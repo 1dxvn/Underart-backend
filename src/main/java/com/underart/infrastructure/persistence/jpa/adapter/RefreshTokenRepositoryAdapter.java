@@ -29,6 +29,11 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepositoryPort
     }
 
     @Override
+    public Optional<RefreshToken> findByTokenHashForUpdate(String tokenHash) {
+        return repository.findByTokenHashForUpdate(tokenHash).map(RefreshTokenMapper::toDomain);
+    }
+
+    @Override
     public void revokeFamily(UUID familyId, Instant now) {
         repository.revokeFamily(familyId, now);
     }
