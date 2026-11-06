@@ -68,6 +68,10 @@ auctions:
     interval-ms: ${AUCTIONS_CLOSING_INTERVAL_MS:60000}
     initial-delay-ms: 30000
 
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
 management:
   endpoints:
     web:
