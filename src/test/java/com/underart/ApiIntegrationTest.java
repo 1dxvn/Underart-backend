@@ -107,6 +107,7 @@ class ApiIntegrationTest {
         biddingFlow(artworkId, artistToken, buyerToken, thirdToken);
         String orderId = closingFlow(artistToken, buyerToken, thirdToken);
         paymentFlow(orderId, buyerToken);
+        fulfillmentFlow(orderId, artistToken, buyerToken);
         buyNowFlow(artistToken, thirdToken);
         searchFlow(artistId);
         notificationsFlow(buyerToken, artistToken);
@@ -256,6 +257,18 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications"), buyerToken,
                 null, 200)), "$.items[*].type")).contains("PAYMENT_APPROVED");
         call(post(pay), buyerToken, null, 400);
+    }
+
+    private void fulfillmentFlow(String orderId, String artistToken, String buyerToken) throws Exception {
+        String ship = "/api/v1/orders/" + orderId + "/ship";
+        String body = "{\"carrier\":\"Servientrega\",\"trackingNumber\":\"SV-123456\"}";
+        call(post(ship), buyerToken, body, 403);
+        call(post(ship), artistToken, "{\"carrier\":\"\"}", 400);
+        String shipped = body(call(post(ship), artistToken, body, 200));
+        assertThat(JsonPath.<String>read(shipped, "$.shippingStatus")).isEqualTo("SHIPPED");
+        assertThat(JsonPath.<String>read(shipped, "$.trackingNumber")).isEqualTo("SV-123456");
+        assertThat(JsonPath.<String>read(shipped, "$.shippedAt")).isNotNull();
+        call(post(ship), artistToken, body, 400);
     }
 
     private void buyNowFlow(String artistToken, String thirdToken) throws Exception {

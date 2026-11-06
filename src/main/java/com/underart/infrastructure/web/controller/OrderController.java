@@ -1,11 +1,14 @@
 package com.underart.infrastructure.web.controller;
 
 import com.underart.application.dto.OrderResponse;
+import com.underart.application.dto.ShipOrderRequest;
 import com.underart.domain.model.Order;
 import com.underart.domain.port.in.BuyNowUseCase;
 import com.underart.domain.port.in.FindOrderUseCase;
+import com.underart.domain.port.in.OrderFulfillmentUseCase;
 import com.underart.domain.port.in.PayOrderUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +29,7 @@ public class OrderController {
     private final BuyNowUseCase buyNowUseCase;
     private final FindOrderUseCase findOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
+    private final OrderFulfillmentUseCase orderFulfillmentUseCase;
 
     @PostMapping("/auctions/{id}/buy-now")
     public ResponseEntity<OrderResponse> buyNow(@PathVariable UUID id) {
@@ -40,5 +45,11 @@ public class OrderController {
     @PostMapping("/orders/{id}/pay")
     public ResponseEntity<OrderResponse> pay(@PathVariable UUID id) {
         return ResponseEntity.ok(OrderResponse.from(payOrderUseCase.pay(id, currentUser.currentUserId())));
+    }
+
+    @PostMapping("/orders/{id}/ship")
+    public ResponseEntity<OrderResponse> ship(@PathVariable UUID id, @Valid @RequestBody ShipOrderRequest req) {
+        return ResponseEntity.ok(OrderResponse.from(orderFulfillmentUseCase.ship(id, currentUser.currentUserId(),
+                req.carrier(), req.trackingNumber())));
     }
 }
