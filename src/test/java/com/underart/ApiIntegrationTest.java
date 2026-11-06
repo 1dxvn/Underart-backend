@@ -89,6 +89,8 @@ class ApiIntegrationTest {
         call(get("/api/v1/users/me"), null, null, 401);
         String publicProfile = body(call(get("/api/v1/users/" + artistId), buyerToken, null, 200));
         assertThat(publicProfile).doesNotContain("shippingAddress").doesNotContain("@test.com");
+        assertThat(JsonPath.<Integer>read(publicProfile, "$.reviewsCount")).isZero();
+        assertThat(JsonPath.<Object>read(publicProfile, "$.averageRating")).isNull();
 
         String artworkId = createArtwork(artistToken, "Amanecer en el lago");
         assertThat(this.<Double>read(call(get("/api/v1/artworks/" + artworkId), buyerToken, null, 200),
@@ -297,6 +299,9 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<Integer>read(reviews, "$.totalItems")).isEqualTo(1);
         assertThat(JsonPath.<Integer>read(reviews, "$.items[0].rating")).isEqualTo(5);
         assertThat(JsonPath.<String>read(reviews, "$.items[0].reviewerUsername")).isEqualTo("u");
+        String profile = body(call(get("/api/v1/users/" + artistId), null, null, 200));
+        assertThat(JsonPath.<Double>read(profile, "$.averageRating")).isEqualTo(5.0);
+        assertThat(JsonPath.<Integer>read(profile, "$.reviewsCount")).isEqualTo(1);
         call(get("/api/v1/users/" + UUID.randomUUID() + "/reviews"), null, null, 404);
         assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications?unreadOnly=true"),
                 artistToken, null, 200)), "$.items[*].type")).contains("NEW_REVIEW");

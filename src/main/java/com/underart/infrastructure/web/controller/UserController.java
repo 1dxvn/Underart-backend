@@ -42,7 +42,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PublicUserResponse> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(PublicUserResponse.from(findUserUseCase.findById(id)));
+        return ResponseEntity.ok(PublicUserResponse.from(findUserUseCase.findById(id), reviewsUseCase.ratingOf(id)));
     }
 
     @GetMapping("/{id}/reviews")
