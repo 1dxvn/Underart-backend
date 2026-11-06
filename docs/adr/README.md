@@ -6,3 +6,4 @@ Un ADR no se edita cuando la decisión cambia: se escribe uno nuevo que lo reemp
 | ADR | Decisión | Estado |
 |---|---|---|
 | [0001](0001-arquitectura-hexagonal.md) | Arquitectura hexagonal con reglas verificadas por pruebas | Aceptada |
+| [0002](0002-postgresql-mongodb-y-flyway.md) | PostgreSQL para el negocio, MongoDB para eventos y Flyway para el esquema | Aceptada |
