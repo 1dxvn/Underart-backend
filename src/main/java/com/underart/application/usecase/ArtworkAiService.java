@@ -4,7 +4,9 @@ import com.underart.domain.model.AiResult;
 import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiGenerationRepositoryPort.AiGenerationRecord;
 import com.underart.domain.port.out.AiProviderPort;
+import com.underart.domain.port.out.RateLimiterPort;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,8 +16,11 @@ public class ArtworkAiService {
 
     private final AiProviderPort aiProvider;
     private final AiGenerationRepositoryPort aiGenerationRepository;
+    private final RateLimiterPort rateLimiter;
 
-    public AiResult processArtwork(String title, String description, String technique, String dimensions) {
+    public AiResult processArtwork(UUID requesterId, String title, String description, String technique,
+                                   String dimensions) {
+        AiUsagePolicy.consume(rateLimiter, requesterId);
         AiResult aiResult = aiProvider.valuateArtwork(title, technique, dimensions);
         List<String> tags = aiProvider.generateTags(title, description);
 

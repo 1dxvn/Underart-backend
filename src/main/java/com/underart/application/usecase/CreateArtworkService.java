@@ -7,6 +7,7 @@ import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiGenerationRepositoryPort.AiGenerationRecord;
 import com.underart.domain.port.out.AiProviderPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
+import com.underart.domain.port.out.RateLimiterPort;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -20,9 +21,11 @@ public class CreateArtworkService implements CreateArtworkUseCase {
     private final AiProviderPort aiProvider;
     private final ArtworkRepositoryPort artworkRepository;
     private final AiGenerationRepositoryPort aiGenerationRepository;
+    private final RateLimiterPort rateLimiter;
 
     @Override
     public Artwork create(CreateArtworkCommand cmd) {
+        AiUsagePolicy.consume(rateLimiter, cmd.artistId());
         AiResult aiResult = aiProvider.valuateArtwork(cmd.title(), cmd.technique(), cmd.dimensions());
         List<String> tags = aiProvider.generateTags(cmd.title(), cmd.description());
 
