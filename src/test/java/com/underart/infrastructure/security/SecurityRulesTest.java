@@ -87,6 +87,30 @@ class SecurityRulesTest {
     }
 
     @Test
+    void errorsCarryPathRequestIdAndFieldErrors() throws Exception {
+        validToken();
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer good")
+                        .header("X-Request-Id", "test-request-0001")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("X-Request-Id", "test-request-0001"))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/api/v1/artworks"))
+                .andExpect(jsonPath("$.requestId").value("test-request-0001"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("title"));
+    }
+
+    @Test
+    void securityErrorsUseTheSameFormat() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.path").value("/api/v1/users/me"))
+                .andExpect(jsonPath("$.requestId").isNotEmpty())
+                .andExpect(jsonPath("$.fieldErrors").isArray());
+    }
+
+    @Test
     void writingWithInvalidTokenReturns401() throws Exception {
         when(jwtService.validateToken("bad")).thenReturn(false);
         mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer bad")

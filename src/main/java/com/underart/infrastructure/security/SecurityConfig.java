@@ -1,5 +1,6 @@
 package com.underart.infrastructure.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -40,8 +41,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService) throws Exception {
-        JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler();
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, ObjectMapper objectMapper)
+            throws Exception {
+        JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

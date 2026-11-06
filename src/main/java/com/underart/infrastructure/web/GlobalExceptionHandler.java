@@ -9,6 +9,7 @@ import com.underart.domain.exception.MediaStorageException;
 import com.underart.domain.exception.PaymentFailedException;
 import com.underart.domain.exception.ResourceNotFoundException;
 import java.time.Instant;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -22,6 +23,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
@@ -70,11 +73,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .orElse("Validación fallida");
-        return build(HttpStatus.BAD_REQUEST, message);
+        List<ApiError.FieldError> fields = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new ApiError.FieldError(error.getField(), error.getDefaultMessage()))
+                .toList();
+        String message = fields.isEmpty() ? "Validación fallida"
+                : fields.get(0).field() + ": " + fields.get(0).message();
+        return build(HttpStatus.BAD_REQUEST, message, fields);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -136,6 +140,16 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(new ApiError(status.value(), message, Instant.now()));
+        return build(status, message, List.of());
+    }
+
+    private ResponseEntity<ApiError> build(HttpStatus status, String message, List<ApiError.FieldError> fields) {
+        return ResponseEntity.status(status).body(new ApiError(status.value(), status.getReasonPhrase(), message,
+                currentPath(), RequestIdFilter.current(), Instant.now(), fields));
+    }
+
+    private static String currentPath() {
+        return RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs
+                ? attrs.getRequest().getRequestURI() : null;
     }
 }
