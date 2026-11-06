@@ -246,10 +246,14 @@ class ApiIntegrationTest {
         call(post(pay), buyerToken, null, 400);
         call(put("/api/v1/users/me/payment-method"), buyerToken, "{\"paymentToken\":\"tok_fail_card\"}", 200);
         call(post(pay), buyerToken, null, 402);
+        assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications"), buyerToken,
+                null, 200)), "$.items[*].type")).contains("PAYMENT_FAILED");
         assertThat(this.<String>read(call(get("/api/v1/orders/" + orderId), buyerToken, null, 200),
                 "$.paymentStatus")).isEqualTo("FAILED");
         call(put("/api/v1/users/me/payment-method"), buyerToken, "{\"paymentToken\":\"tok_visa\"}", 200);
         assertThat(this.<String>read(call(post(pay), buyerToken, null, 200), "$.paymentStatus")).isEqualTo("PAID");
+        assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications"), buyerToken,
+                null, 200)), "$.items[*].type")).contains("PAYMENT_APPROVED");
         call(post(pay), buyerToken, null, 400);
     }
 

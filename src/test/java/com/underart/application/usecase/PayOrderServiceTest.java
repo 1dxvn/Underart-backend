@@ -15,6 +15,7 @@ import com.underart.domain.model.PaymentStatus;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
+import com.underart.domain.port.out.NotificationSenderPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.domain.port.out.PaymentGatewayPort;
 import com.underart.domain.port.out.PaymentGatewayPort.PaymentResult;
@@ -31,7 +32,9 @@ class PayOrderServiceTest {
     private final FindUserUseCase users = mock(FindUserUseCase.class);
     private final PaymentGatewayPort gateway = mock(PaymentGatewayPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final PayOrderService service = new PayOrderService(orders, users, gateway, log);
+    private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
+    private final OrderParties parties = mock(OrderParties.class);
+    private final PayOrderService service = new PayOrderService(orders, users, gateway, log, notifications, parties);
     private final UUID buyerId = UUID.randomUUID();
     private Order order;
 
@@ -51,7 +54,17 @@ class PayOrderServiceTest {
         buyerWithToken("tok_ok");
         when(gateway.charge("tok_ok", order.totalPaid(), "order-" + order.id()))
                 .thenReturn(new PaymentResult(true, "tx1", "ok"));
+        UUID artistId = UUID.randomUUID();
+        when(parties.artworkOf(order)).thenReturn(java.util.Optional.of(new com.underart.domain.model.Artwork(
+                UUID.randomUUID(), artistId, "Marina", null, null, null, null, null, java.util.List.of(), Instant.now())));
+
         assertThat(service.pay(order.id(), buyerId).paymentStatus()).isEqualTo(PaymentStatus.PAID);
+
+        org.mockito.ArgumentCaptor<com.underart.domain.model.Notification> sent =
+                org.mockito.ArgumentCaptor.forClass(com.underart.domain.model.Notification.class);
+        verify(notifications, org.mockito.Mockito.times(2)).send(sent.capture());
+        assertThat(sent.getAllValues()).extracting(com.underart.domain.model.Notification::userId)
+                .containsExactly(buyerId, artistId);
     }
 
     @Test
@@ -60,6 +73,8 @@ class PayOrderServiceTest {
         when(gateway.charge(any(), any(), any())).thenReturn(new PaymentResult(false, null, "rechazada"));
         assertThatThrownBy(() -> service.pay(order.id(), buyerId)).isInstanceOf(PaymentFailedException.class);
         verify(orders).save(order.withPaymentStatus(PaymentStatus.FAILED));
+        verify(notifications).send(org.mockito.ArgumentMatchers.argThat(n ->
+                n.userId().equals(buyerId) && n.type() == com.underart.domain.model.NotificationType.PAYMENT_FAILED));
     }
 
     @Test

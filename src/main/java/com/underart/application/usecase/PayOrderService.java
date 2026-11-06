@@ -4,12 +4,15 @@ import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.ForbiddenOperationException;
 import com.underart.domain.exception.PaymentFailedException;
 import com.underart.domain.exception.ResourceNotFoundException;
+import com.underart.domain.model.Notification;
+import com.underart.domain.model.NotificationType;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PaymentStatus;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.in.PayOrderUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
+import com.underart.domain.port.out.NotificationSenderPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.domain.port.out.PaymentGatewayPort;
 import com.underart.domain.port.out.PaymentGatewayPort.PaymentResult;
@@ -26,6 +29,8 @@ public class PayOrderService implements PayOrderUseCase {
     private final FindUserUseCase findUserUseCase;
     private final PaymentGatewayPort paymentGateway;
     private final ActivityLogRepositoryPort activityLogRepository;
+    private final NotificationSenderPort notifications;
+    private final OrderParties orderParties;
 
     @Override
     public Order pay(UUID orderId, UUID requesterId) {
@@ -47,9 +52,18 @@ public class PayOrderService implements PayOrderUseCase {
             orderRepository.save(order.withPaymentStatus(PaymentStatus.FAILED));
             activityLogRepository.log("PAYMENT_FAILED", "Pago rechazado de la orden " + orderId,
                     requesterId, Map.of("orderId", orderId.toString()));
+            notifications.send(Notification.create(requesterId, NotificationType.PAYMENT_FAILED, "Pago rechazado",
+                    "No se pudo cobrar tu orden: " + result.message() + ". Revisa tu método de pago e inténtalo de nuevo.",
+                    Map.of("orderId", orderId.toString(), "auctionId", order.auctionId().toString())));
             throw new PaymentFailedException("Pago rechazado: " + result.message());
         }
         Order paid = orderRepository.save(order.withPaymentStatus(PaymentStatus.PAID));
+        Map<String, String> data = Map.of("orderId", orderId.toString(), "auctionId", order.auctionId().toString());
+        notifications.send(Notification.create(requesterId, NotificationType.PAYMENT_APPROVED, "Pago aprobado",
+                "Pagaste " + order.totalPaid().toPlainString() + ". El artista preparará el envío.", data));
+        orderParties.artworkOf(order).ifPresent(artwork -> notifications.send(Notification.create(artwork.artistId(),
+                NotificationType.PAYMENT_APPROVED, "El comprador pagó",
+                "El comprador pagó «" + artwork.title() + "». Ya puedes enviarla.", data)));
         activityLogRepository.log("PAYMENT_APPROVED", "Pago aprobado de la orden " + orderId,
                 requesterId, Map.of("orderId", orderId.toString(), "transactionId", result.transactionId()));
         return paid;
