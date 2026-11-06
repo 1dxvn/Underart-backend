@@ -180,6 +180,17 @@ class ApiIntegrationTest {
         call(post(bids), thirdToken, "{\"amount\":-5}", 400);
         call(post(bids), thirdToken, "{\"amount\":200}", 201);
 
+        String inbox = body(call(get("/api/v1/users/me/notifications?unreadOnly=true"), buyerToken, null, 200));
+        assertThat(JsonPath.<String>read(inbox, "$.items[0].type")).isEqualTo("OUTBID");
+        assertThat(JsonPath.<String>read(inbox, "$.items[0].data.auctionId")).isEqualTo(auctionId);
+        int unread = read(call(get("/api/v1/users/me/notifications/unread-count"), buyerToken, null, 200), "$.count");
+        call(post("/api/v1/users/me/notifications/" + JsonPath.read(inbox, "$.items[0].id") + "/read"),
+                buyerToken, null, 204);
+        call(post("/api/v1/users/me/notifications/" + JsonPath.read(inbox, "$.items[0].id") + "/read"),
+                thirdToken, null, 404);
+        assertThat(this.<Integer>read(call(get("/api/v1/users/me/notifications/unread-count"), buyerToken, null, 200),
+                "$.count")).isEqualTo(unread - 1);
+
         String detail = body(call(get("/api/v1/auctions/" + auctionId), null, null, 200));
         call(get(bids), null, null, 401);
         assertThat(JsonPath.<Double>read(detail, "$.auction.currentPrice")).isEqualTo(200.0);

@@ -8,14 +8,18 @@ import com.underart.domain.model.Artwork;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.Bid;
 import com.underart.domain.model.BidIncrementPolicy;
+import com.underart.domain.model.Notification;
+import com.underart.domain.model.NotificationType;
 import com.underart.domain.port.in.PlaceBidUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
+import com.underart.domain.port.out.NotificationSenderPort;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +33,7 @@ public class PlaceBidService implements PlaceBidUseCase {
     private final BidRepositoryPort bidRepository;
     private final ArtworkRepositoryPort artworkRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
+    private final NotificationSenderPort notifications;
 
     @Override
     @Transactional
@@ -49,7 +54,8 @@ public class PlaceBidService implements PlaceBidUseCase {
         if (artwork.artistId().equals(buyerId)) {
             throw new BusinessRuleException("No puedes pujar en tu propia obra");
         }
-        BigDecimal highest = bidRepository.findHighestBid(auctionId).map(Bid::amount).orElse(null);
+        Optional<Bid> previous = bidRepository.findHighestBid(auctionId);
+        BigDecimal highest = previous.map(Bid::amount).orElse(null);
         BigDecimal minimum = BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest);
         if (amount.compareTo(minimum) < 0) {
             throw new InvalidBidException("La puja mínima es " + minimum.toPlainString());
@@ -60,6 +66,12 @@ public class PlaceBidService implements PlaceBidUseCase {
             activityLogRepository.log("AUCTION_EXTENDED", "Subasta " + auctionId + " prorrogada por una puja de último momento",
                     buyerId, Map.of("auctionId", auctionId.toString(), "newEndDate", newEnd.toString()));
         });
+        previous.filter(bid -> !bid.buyerId().equals(buyerId)).ifPresent(outbid ->
+                notifications.send(Notification.create(outbid.buyerId(), NotificationType.OUTBID,
+                        "Te superaron en una puja",
+                        "Alguien ofreció " + amount.toPlainString() + " por «" + artwork.title()
+                                + "». Puja de nuevo antes de que termine.",
+                        Map.of("auctionId", auctionId.toString(), "artworkId", artwork.id().toString()))));
         activityLogRepository.log("BID_PLACED", "Puja de " + amount + " en subasta " + auctionId,
                 buyerId, Map.of("amount", amount, "auctionId", auctionId.toString()));
         return saved;

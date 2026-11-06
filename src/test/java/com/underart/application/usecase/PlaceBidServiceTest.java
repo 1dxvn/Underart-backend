@@ -18,6 +18,7 @@ import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
+import com.underart.domain.port.out.NotificationSenderPort;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -31,7 +32,8 @@ class PlaceBidServiceTest {
     private final BidRepositoryPort bids = mock(BidRepositoryPort.class);
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final PlaceBidService service = new PlaceBidService(auctions, bids, artworks, log);
+    private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
+    private final PlaceBidService service = new PlaceBidService(auctions, bids, artworks, log, notifications);
     private final UUID auctionId = UUID.randomUUID();
     private final UUID artistId = UUID.randomUUID();
     private final UUID buyerId = UUID.randomUUID();
@@ -129,5 +131,33 @@ class PlaceBidServiceTest {
         service.place(auctionId, buyerId, new BigDecimal("150"));
 
         verify(auctions, never()).save(any());
+    }
+
+    @Test
+    void notifiesThePreviousHighestBidderWhenOutbid() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        UUID previousBidder = UUID.randomUUID();
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, previousBidder, new BigDecimal("150"), Instant.now())));
+
+        service.place(auctionId, buyerId, new BigDecimal("200"));
+
+        org.mockito.ArgumentCaptor<com.underart.domain.model.Notification> sent =
+                org.mockito.ArgumentCaptor.forClass(com.underart.domain.model.Notification.class);
+        verify(notifications).send(sent.capture());
+        assertThat(sent.getValue().userId()).isEqualTo(previousBidder);
+        assertThat(sent.getValue().type()).isEqualTo(com.underart.domain.model.NotificationType.OUTBID);
+        assertThat(sent.getValue().data()).containsEntry("auctionId", auctionId.toString());
+    }
+
+    @Test
+    void doesNotNotifyWhenRaisingYourOwnBid() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, buyerId, new BigDecimal("150"), Instant.now())));
+
+        service.place(auctionId, buyerId, new BigDecimal("200"));
+
+        org.mockito.Mockito.verifyNoInteractions(notifications);
     }
 }
