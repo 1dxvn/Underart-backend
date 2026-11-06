@@ -1,0 +1,11 @@
+package com.underart.domain.port.in;
+
+import com.underart.domain.model.User;
+
+public interface AuthSessionUseCase {
+
+    Session login(String email, String password);
+
+    record Session(User user, String accessToken, long expiresInSeconds, String refreshToken) {
+    }
+}
