@@ -24,6 +24,9 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Obras", description = "Catálogo de obras, búsqueda, edición y favoritos")
 @RequestMapping("/api/v1/artworks")
 @RequiredArgsConstructor
 public class ArtworkController {
@@ -56,6 +60,7 @@ public class ArtworkController {
     private final FavoritesUseCase favoritesUseCase;
 
     @PostMapping
+    @Operation(summary = "Crear una obra; la IA sugiere precio y etiquetas")
     public ResponseEntity<ArtworkResponse> create(@Valid @RequestBody CreateArtworkRequest req) {
         Artwork artwork = createArtworkUseCase.create(new CreateArtworkCommand(
                 currentUser.currentUserId(), req.title(), req.description(), req.technique(),
@@ -64,6 +69,8 @@ public class ArtworkController {
     }
 
     @GetMapping
+    @Operation(summary = "Buscar obras con filtros, rango de precio y orden")
+    @SecurityRequirements
     public ResponseEntity<PageResponse<ArtworkResponse>> list(
             @RequestParam(required = false) UUID artistId,
             @RequestParam(required = false) String technique,
@@ -82,24 +89,29 @@ public class ArtworkController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Detalle de una obra con su galería y favoritos")
+    @SecurityRequirements
     public ResponseEntity<ArtworkDetailResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(ArtworkDetailResponse.from(
                 findArtworkUseCase.findDetails(id, currentUser.currentUserIdIfPresent().orElse(null))));
     }
 
     @PostMapping("/{id}/favorite")
+    @Operation(summary = "Marcar la obra como favorita")
     public ResponseEntity<Void> addFavorite(@PathVariable UUID id) {
         favoritesUseCase.add(currentUser.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/favorite")
+    @Operation(summary = "Quitar la obra de favoritos")
     public ResponseEntity<Void> removeFavorite(@PathVariable UUID id) {
         favoritesUseCase.remove(currentUser.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Editar una obra (solo el autor)")
     public ResponseEntity<ArtworkResponse> update(@PathVariable UUID id,
                                                   @Valid @RequestBody UpdateArtworkRequest req) {
         updateArtworkUseCase.update(new UpdateArtworkCommand(id, currentUser.currentUserId(), req.title(),
@@ -109,6 +121,7 @@ public class ArtworkController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Borrar una obra sin subastas (solo el autor)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         deleteArtworkUseCase.delete(id, currentUser.currentUserId());
         return ResponseEntity.noContent().build();

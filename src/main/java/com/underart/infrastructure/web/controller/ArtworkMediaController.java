@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@Tag(name = "Multimedia", description = "Imágenes y videos de las obras en Cloudflare R2")
 @RequestMapping("/api/v1/artworks/{artworkId}/media")
 @RequiredArgsConstructor
 public class ArtworkMediaController {
@@ -46,6 +50,7 @@ public class ArtworkMediaController {
     private final ReorderArtworkMediaUseCase reorderUseCase;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Subir una imagen o un video corto (multipart, campo file)")
     public ResponseEntity<ArtworkMediaResponse> upload(@PathVariable UUID artworkId,
                                                        @RequestPart("file") MultipartFile file) {
         try (InputStream content = file.getInputStream()) {
@@ -58,11 +63,14 @@ public class ArtworkMediaController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar los archivos de una obra; el primero es la portada")
+    @SecurityRequirements
     public ResponseEntity<List<ArtworkMediaResponse>> list(@PathVariable UUID artworkId) {
         return ResponseEntity.ok(listUseCase.list(artworkId).stream().map(ArtworkMediaResponse::from).toList());
     }
 
     @PostMapping("/upload-url")
+    @Operation(summary = "Pedir una URL firmada para subir un video grande directo a R2")
     public ResponseEntity<MediaUploadUrlResponse> requestUploadUrl(@PathVariable UUID artworkId,
                                                                    @Valid @RequestBody MediaUploadUrlRequest req) {
         return ResponseEntity.ok(MediaUploadUrlResponse.from(directUploadUseCase.requestUpload(
@@ -70,6 +78,7 @@ public class ArtworkMediaController {
     }
 
     @PostMapping("/{mediaId}/confirm")
+    @Operation(summary = "Confirmar una subida directa")
     public ResponseEntity<ArtworkMediaResponse> confirm(@PathVariable UUID artworkId, @PathVariable UUID mediaId,
                                                         @Valid @RequestBody ConfirmMediaRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ArtworkMediaResponse.from(
@@ -77,6 +86,7 @@ public class ArtworkMediaController {
     }
 
     @PutMapping("/order")
+    @Operation(summary = "Reordenar los archivos (el primero es la portada)")
     public ResponseEntity<List<ArtworkMediaResponse>> reorder(@PathVariable UUID artworkId,
                                                               @Valid @RequestBody ReorderMediaRequest req) {
         return ResponseEntity.ok(reorderUseCase.reorder(artworkId, currentUser.currentUserId(), req.mediaIds())
@@ -84,6 +94,7 @@ public class ArtworkMediaController {
     }
 
     @DeleteMapping("/{mediaId}")
+    @Operation(summary = "Borrar un archivo")
     public ResponseEntity<Void> delete(@PathVariable UUID artworkId, @PathVariable UUID mediaId) {
         deleteUseCase.delete(artworkId, mediaId, currentUser.currentUserId());
         return ResponseEntity.noContent().build();
