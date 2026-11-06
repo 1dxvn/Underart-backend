@@ -247,8 +247,12 @@ class ApiIntegrationTest {
     private String registerAndLogin(String email) throws Exception {
         call(post("/api/v1/users/register"), null, "{\"username\":\"u\",\"email\":\"" + email
                 + "\",\"password\":\"password123\",\"city\":\"Bogotá\",\"shippingAddress\":\"Calle 1\"}", 201);
-        return read(call(post("/api/v1/auth/login"), null,
-                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200), "$.token");
+        String session = body(call(post("/api/v1/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200));
+        assertThat(JsonPath.<String>read(session, "$.tokenType")).isEqualTo("Bearer");
+        assertThat(JsonPath.<Integer>read(session, "$.expiresIn")).isEqualTo(900);
+        assertThat(JsonPath.<String>read(session, "$.refreshToken")).isNotBlank();
+        return JsonPath.read(session, "$.accessToken");
     }
 
     private MvcResult upload(String path, String token, String contentType, int expected) throws Exception {

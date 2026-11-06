@@ -1,5 +1,7 @@
 package com.underart.infrastructure.security;
 
+import com.underart.domain.model.User;
+import com.underart.domain.port.out.AccessTokenPort;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -12,7 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
-public class JwtService {
+public class JwtService implements AccessTokenPort {
 
     static final String ISSUER = "underart-backend";
     static final String AUDIENCE = "underart-api";
@@ -25,12 +27,17 @@ public class JwtService {
     private final long expirationMs;
 
     public JwtService(@Value("${jwt.secret}") String secret,
-                      @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
+                      @Value("${jwt.expiration-ms:900000}") long expirationMs) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
             throw new IllegalStateException("JWT_SECRET debe tener al menos " + MIN_SECRET_BYTES + " caracteres");
         }
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+    }
+
+    @Override
+    public IssuedAccessToken issue(User user) {
+        return new IssuedAccessToken(generateToken(user.email(), user.id()), expirationSeconds());
     }
 
     public long expirationSeconds() {

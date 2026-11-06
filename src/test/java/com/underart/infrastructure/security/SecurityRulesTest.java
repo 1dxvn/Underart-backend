@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.underart.domain.model.PageResult;
-import com.underart.domain.port.in.AuthenticateUserUseCase;
+import com.underart.domain.port.in.AuthSessionUseCase;
 import com.underart.domain.port.in.CreateArtworkUseCase;
 import com.underart.domain.port.in.DeleteArtworkUseCase;
 import com.underart.domain.port.in.FindArtworkUseCase;
@@ -53,7 +53,7 @@ class SecurityRulesTest {
     @MockBean
     private DeleteArtworkUseCase deleteArtworkUseCase;
     @MockBean
-    private AuthenticateUserUseCase authenticateUserUseCase;
+    private AuthSessionUseCase authSessionUseCase;
 
     private void validToken() {
         when(jwtService.validateToken("good")).thenReturn(true);
