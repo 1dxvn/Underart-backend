@@ -29,6 +29,7 @@ public class BuyNowService implements BuyNowUseCase {
     private final ArtworkRepositoryPort artworkRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
     private final List<AuctionClosedListenerPort> closedListeners;
+    private final AuctionOutcomeNotifier outcomeNotifier;
 
     @Override
     @Transactional
@@ -52,6 +53,7 @@ public class BuyNowService implements BuyNowUseCase {
         Order saved = orderRepository.save(Order.pending(auctionId, buyerId, auction.immediatePurchasePrice()));
         Auction closed = auctionRepository.save(auction.withStatus(AuctionStatus.CLOSED));
         closedListeners.forEach(listener -> listener.onAuctionClosed(closed));
+        outcomeNotifier.sold(artwork, closed, saved, true);
         activityLogRepository.log("BUY_NOW", "Compra inmediata de subasta " + auctionId, buyerId,
                 Map.of("total", saved.totalPaid(), "tracking", saved.trackingNumber()));
         return saved;

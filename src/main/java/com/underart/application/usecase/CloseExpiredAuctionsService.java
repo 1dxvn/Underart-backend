@@ -6,6 +6,7 @@ import com.underart.domain.model.Bid;
 import com.underart.domain.model.Order;
 import com.underart.domain.port.in.CloseExpiredAuctionsUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
+import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionClosedListenerPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
@@ -28,6 +29,8 @@ public class CloseExpiredAuctionsService implements CloseExpiredAuctionsUseCase 
     private final OrderRepositoryPort orderRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
     private final List<AuctionClosedListenerPort> closedListeners;
+    private final ArtworkRepositoryPort artworkRepository;
+    private final AuctionOutcomeNotifier outcomeNotifier;
 
     @Override
     public List<UUID> findExpired() {
@@ -51,6 +54,13 @@ public class CloseExpiredAuctionsService implements CloseExpiredAuctionsUseCase 
         order.ifPresent(o -> activityLogRepository.log("AUCTION_WON",
                 "Ganaste la subasta " + auctionId, o.winnerId(),
                 Map.of("auctionId", auctionId.toString(), "total", o.totalPaid())));
+        artworkRepository.findById(auction.artworkId()).ifPresent(artwork -> order.ifPresentOrElse(
+                o -> outcomeNotifier.sold(artwork, closed, o, false),
+                () -> {
+                    if (winner.isEmpty()) {
+                        outcomeNotifier.endedWithoutBids(artwork, closed);
+                    }
+                }));
         return order;
     }
 }

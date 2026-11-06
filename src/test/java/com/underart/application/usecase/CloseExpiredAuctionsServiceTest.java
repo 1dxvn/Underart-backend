@@ -12,6 +12,7 @@ import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.Bid;
 import com.underart.domain.model.Order;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
+import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionClosedListenerPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
@@ -32,8 +33,10 @@ class CloseExpiredAuctionsServiceTest {
     private final OrderRepositoryPort orders = mock(OrderRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final AuctionClosedListenerPort listener = mock(AuctionClosedListenerPort.class);
+    private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
+    private final AuctionOutcomeNotifier notifier = mock(AuctionOutcomeNotifier.class);
     private final CloseExpiredAuctionsService service =
-            new CloseExpiredAuctionsService(auctions, bids, orders, log, List.of(listener));
+            new CloseExpiredAuctionsService(auctions, bids, orders, log, List.of(listener), artworks, notifier);
 
     @BeforeEach
     void setUp() {
@@ -42,7 +45,8 @@ class CloseExpiredAuctionsServiceTest {
     }
 
     private Auction given(Instant end) {
-        Auction auction = Fixtures.auction(UUID.randomUUID(), AuctionStatus.ACTIVE, null, end);
+        Auction auction = Fixtures.auction(Fixtures.artworkOf(artworks, UUID.randomUUID()), AuctionStatus.ACTIVE,
+                null, end);
         when(auctions.findByIdForUpdate(auction.id())).thenReturn(Optional.of(auction));
         return auction;
     }
@@ -63,6 +67,7 @@ class CloseExpiredAuctionsServiceTest {
         verify(auctions).save(saved.capture());
         assertThat(saved.getValue().status()).isEqualTo(AuctionStatus.CLOSED);
         verify(listener).onAuctionClosed(saved.getValue());
+        verify(notifier).sold(any(), any(), any(), org.mockito.ArgumentMatchers.eq(false));
     }
 
     @Test
@@ -73,6 +78,7 @@ class CloseExpiredAuctionsServiceTest {
         assertThat(service.close(auction.id())).isEmpty();
         verify(orders, never()).save(any());
         verify(auctions).save(any());
+        verify(notifier).endedWithoutBids(any(), any());
     }
 
     @Test

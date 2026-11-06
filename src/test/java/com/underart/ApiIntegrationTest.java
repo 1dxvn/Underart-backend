@@ -226,6 +226,10 @@ class ApiIntegrationTest {
         assertThat(closer.findExpired()).contains(UUID.fromString(auctionId));
         String orderId = closer.close(UUID.fromString(auctionId)).orElseThrow().id().toString();
         assertThat(closer.close(UUID.fromString(auctionId))).isEmpty();
+        assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications"), buyerToken,
+                null, 200)), "$.items[?(@.type == 'AUCTION_WON')].data.orderId")).contains(orderId);
+        assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications"), artistToken,
+                null, 200)), "$.items[*].type")).contains("AUCTION_SOLD");
 
         assertThat(this.<String>read(call(get("/api/v1/auctions/" + auctionId), buyerToken, null, 200),
                 "$.auction.status")).isEqualTo("CLOSED");

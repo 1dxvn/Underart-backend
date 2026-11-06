@@ -34,7 +34,9 @@ class BuyNowServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final AuctionClosedListenerPort listener = mock(AuctionClosedListenerPort.class);
-    private final BuyNowService service = new BuyNowService(auctions, orders, artworks, log, List.of(listener));
+    private final AuctionOutcomeNotifier notifier = mock(AuctionOutcomeNotifier.class);
+    private final BuyNowService service =
+            new BuyNowService(auctions, orders, artworks, log, List.of(listener), notifier);
     private final UUID artistId = UUID.randomUUID();
     private final UUID buyerId = UUID.randomUUID();
     private UUID artworkId;
@@ -66,6 +68,7 @@ class BuyNowServiceTest {
         verify(auctions).save(saved.capture());
         assertThat(saved.getValue().status()).isEqualTo(AuctionStatus.CLOSED);
         verify(listener).onAuctionClosed(saved.getValue());
+        verify(notifier).sold(any(), any(), any(), org.mockito.ArgumentMatchers.eq(true));
     }
 
     @Test
