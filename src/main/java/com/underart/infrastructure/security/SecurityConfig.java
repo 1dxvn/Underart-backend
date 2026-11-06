@@ -53,7 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/artworks", "/api/v1/artworks/*",
                                 "/api/v1/artworks/*/media", "/api/v1/auctions", "/api/v1/auctions/*",
-                                "/api/v1/users/*").permitAll()
+                                "/api/v1/users/*", "/api/v1/users/*/reviews").permitAll()
                         .requestMatchers("/", "/api/v1/users/register", "/api/v1/auth/**",
                                 "/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

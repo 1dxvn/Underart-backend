@@ -108,6 +108,7 @@ class ApiIntegrationTest {
         String orderId = closingFlow(artistToken, buyerToken, thirdToken);
         paymentFlow(orderId, buyerToken);
         fulfillmentFlow(orderId, artistToken, buyerToken);
+        reviewFlow(orderId, artistId, artistToken, buyerToken);
         buyNowFlow(artistToken, thirdToken);
         searchFlow(artistId);
         notificationsFlow(buyerToken, artistToken);
@@ -283,6 +284,22 @@ class ApiIntegrationTest {
                 artistToken, null, 200)), "$.items[*].type")).contains("ORDER_DELIVERED");
     }
 
+    private void reviewFlow(String orderId, String artistId, String artistToken, String buyerToken) throws Exception {
+        String review = "/api/v1/orders/" + orderId + "/review";
+        call(post(review), artistToken, "{\"rating\":5}", 403);
+        call(post(review), buyerToken, "{\"rating\":6}", 400);
+        String created = body(call(post(review), buyerToken, "{\"rating\":5,\"comment\":\" Excelente \"}", 201));
+        assertThat(JsonPath.<String>read(created, "$.comment")).isEqualTo("Excelente");
+        assertThat(JsonPath.<String>read(created, "$.sellerId")).isEqualTo(artistId);
+        call(post(review), buyerToken, "{\"rating\":4}", 400);
+
+        String reviews = body(call(get("/api/v1/users/" + artistId + "/reviews"), null, null, 200));
+        assertThat(JsonPath.<Integer>read(reviews, "$.totalItems")).isEqualTo(1);
+        assertThat(JsonPath.<Integer>read(reviews, "$.items[0].rating")).isEqualTo(5);
+        assertThat(JsonPath.<String>read(reviews, "$.items[0].reviewerUsername")).isEqualTo("u");
+        call(get("/api/v1/users/" + UUID.randomUUID() + "/reviews"), null, null, 404);
+    }
+
     private void buyNowFlow(String artistToken, String thirdToken) throws Exception {
         String artworkId = createArtwork(artistToken, "Marina");
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"IMMEDIATE\",\"basePrice\":100,"
@@ -293,6 +310,7 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<Double>read(bought, "$.totalPaid")).isEqualTo(565.0);
         assertThat(JsonPath.<String>read(bought, "$.shippingStatus")).isEqualTo("PENDING");
         assertThat(JsonPath.<String>read(bought, "$.trackingNumber")).isNull();
+        call(post("/api/v1/orders/" + JsonPath.read(bought, "$.id") + "/review"), thirdToken, "{\"rating\":5}", 400);
         call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 400);
     }
 

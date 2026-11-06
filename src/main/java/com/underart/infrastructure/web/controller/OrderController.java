@@ -1,12 +1,15 @@
 package com.underart.infrastructure.web.controller;
 
+import com.underart.application.dto.CreateReviewRequest;
 import com.underart.application.dto.OrderResponse;
+import com.underart.application.dto.ReviewResponse;
 import com.underart.application.dto.ShipOrderRequest;
 import com.underart.domain.model.Order;
 import com.underart.domain.port.in.BuyNowUseCase;
 import com.underart.domain.port.in.FindOrderUseCase;
 import com.underart.domain.port.in.OrderFulfillmentUseCase;
 import com.underart.domain.port.in.PayOrderUseCase;
+import com.underart.domain.port.in.ReviewsUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -30,6 +33,7 @@ public class OrderController {
     private final FindOrderUseCase findOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
     private final OrderFulfillmentUseCase orderFulfillmentUseCase;
+    private final ReviewsUseCase reviewsUseCase;
 
     @PostMapping("/auctions/{id}/buy-now")
     public ResponseEntity<OrderResponse> buyNow(@PathVariable UUID id) {
@@ -57,5 +61,11 @@ public class OrderController {
     public ResponseEntity<OrderResponse> confirmDelivery(@PathVariable UUID id) {
         return ResponseEntity.ok(OrderResponse.from(
                 orderFulfillmentUseCase.confirmDelivery(id, currentUser.currentUserId())));
+    }
+
+    @PostMapping("/orders/{id}/review")
+    public ResponseEntity<ReviewResponse> review(@PathVariable UUID id, @Valid @RequestBody CreateReviewRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ReviewResponse.from(
+                reviewsUseCase.create(id, currentUser.currentUserId(), req.rating(), req.comment())));
     }
 }
