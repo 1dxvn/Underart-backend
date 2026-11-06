@@ -264,8 +264,10 @@ class ApiIntegrationTest {
                 + "\"immediatePurchasePrice\":500,\"endDate\":\"" + Instant.now().plusSeconds(3600) + "\"}";
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
         call(post("/api/v1/auctions/" + auctionId + "/buy-now"), artistToken, null, 400);
-        assertThat(this.<Double>read(call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 201),
-                "$.totalPaid")).isEqualTo(565.0);
+        String bought = body(call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 201));
+        assertThat(JsonPath.<Double>read(bought, "$.totalPaid")).isEqualTo(565.0);
+        assertThat(JsonPath.<String>read(bought, "$.shippingStatus")).isEqualTo("PENDING");
+        assertThat(JsonPath.<String>read(bought, "$.trackingNumber")).isNull();
         call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 400);
     }
 

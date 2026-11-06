@@ -13,7 +13,8 @@ public final class OrderMapper {
     public static Order toDomain(OrderEntity e) {
         return new Order(e.getId(), e.getAuction().getId(), e.getWinner().getId(),
                 e.getSubtotal(), e.getShippingCost(), e.getPlatformFee(), e.getTotalPaid(),
-                e.getPaymentStatus(), e.getTrackingNumber(), e.getCreatedAt());
+                e.getPaymentStatus(), e.getShippingStatus(), e.getCarrier(), e.getTrackingNumber(), e.getShippedAt(),
+                e.getDeliveredAt(), e.getCreatedAt());
     }
 
     public static OrderEntity toEntity(Order o) {
@@ -26,7 +27,11 @@ public final class OrderMapper {
                 .platformFee(o.platformFee())
                 .totalPaid(o.totalPaid())
                 .paymentStatus(o.paymentStatus())
+                .shippingStatus(o.shippingStatus())
+                .carrier(o.carrier())
                 .trackingNumber(o.trackingNumber())
+                .shippedAt(o.shippedAt())
+                .deliveredAt(o.deliveredAt())
                 .createdAt(o.createdAt())
                 .build();
     }

@@ -55,7 +55,7 @@ public class BuyNowService implements BuyNowUseCase {
         closedListeners.forEach(listener -> listener.onAuctionClosed(closed));
         outcomeNotifier.sold(artwork, closed, saved, true);
         activityLogRepository.log("BUY_NOW", "Compra inmediata de subasta " + auctionId, buyerId,
-                Map.of("total", saved.totalPaid(), "tracking", saved.trackingNumber()));
+                Map.of("total", saved.totalPaid(), "orderId", saved.id().toString()));
         return saved;
     }
 }
