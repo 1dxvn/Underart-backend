@@ -4,7 +4,10 @@ import com.underart.domain.model.ArtworkMedia;
 import com.underart.domain.port.out.ArtworkMediaRepositoryPort;
 import com.underart.infrastructure.persistence.jpa.mapper.ArtworkMediaMapper;
 import com.underart.infrastructure.persistence.jpa.repository.ArtworkMediaJpaRepository;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -48,5 +51,17 @@ public class ArtworkMediaRepositoryAdapter implements ArtworkMediaRepositoryPort
     @Override
     public void deleteById(UUID id) {
         repository.deleteById(id);
+    }
+
+    @Override
+    public Map<UUID, String> coverUrlsByArtworkIds(Collection<UUID> artworkIds) {
+        if (artworkIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> covers = new HashMap<>();
+        for (Object[] row : repository.imageUrlsByArtworkIds(artworkIds)) {
+            covers.putIfAbsent((UUID) row[0], (String) row[1]);
+        }
+        return covers;
     }
 }

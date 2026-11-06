@@ -3,7 +3,10 @@ package com.underart.domain.port.out;
 import com.underart.domain.model.Bid;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PageResult;
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,4 +23,9 @@ public interface BidRepositoryPort {
     Optional<Bid> findHighestBid(UUID auctionId);
 
     long countByAuctionId(UUID auctionId);
+
+    Map<UUID, BidStats> statsByAuctionIds(Collection<UUID> auctionIds);
+
+    record BidStats(BigDecimal highestAmount, long count) {
+    }
 }

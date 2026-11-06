@@ -8,6 +8,7 @@ import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.jpa.mapper.ArtworkMapper;
 import com.underart.infrastructure.persistence.jpa.repository.ArtworkJpaRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,5 +53,13 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     @Override
     public void deleteById(UUID id) {
         repository.deleteById(id);
+    }
+
+    @Override
+    public List<Artwork> findAllByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids).stream().map(ArtworkMapper::toDomain).toList();
     }
 }

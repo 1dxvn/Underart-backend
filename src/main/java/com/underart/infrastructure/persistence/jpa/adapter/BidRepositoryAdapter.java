@@ -7,7 +7,11 @@ import com.underart.domain.port.out.BidRepositoryPort;
 import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.jpa.mapper.BidMapper;
 import com.underart.infrastructure.persistence.jpa.repository.BidJpaRepository;
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
@@ -55,5 +59,17 @@ public class BidRepositoryAdapter implements BidRepositoryPort {
     @Override
     public long countByAuctionId(UUID auctionId) {
         return repository.countByAuctionId(auctionId);
+    }
+
+    @Override
+    public Map<UUID, BidStats> statsByAuctionIds(Collection<UUID> auctionIds) {
+        if (auctionIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, BidStats> stats = new HashMap<>();
+        for (Object[] row : repository.statsByAuctionIds(auctionIds)) {
+            stats.put((UUID) row[0], new BidStats((BigDecimal) row[1], ((Number) row[2]).longValue()));
+        }
+        return stats;
     }
 }
