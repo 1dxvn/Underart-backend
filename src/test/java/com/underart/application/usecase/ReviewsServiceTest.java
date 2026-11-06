@@ -16,6 +16,7 @@ import com.underart.domain.model.PaymentStatus;
 import com.underart.domain.model.Review;
 import com.underart.domain.model.ReviewView;
 import com.underart.domain.model.User;
+import com.underart.domain.port.out.NotificationSenderPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.domain.port.out.ReviewRepositoryPort;
 import com.underart.domain.port.out.UserRepositoryPort;
@@ -33,7 +34,8 @@ class ReviewsServiceTest {
     private final OrderRepositoryPort orders = mock(OrderRepositoryPort.class);
     private final UserRepositoryPort users = mock(UserRepositoryPort.class);
     private final OrderParties parties = mock(OrderParties.class);
-    private final ReviewsService service = new ReviewsService(reviews, orders, users, parties);
+    private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
+    private final ReviewsService service = new ReviewsService(reviews, orders, users, parties, notifications);
     private final UUID buyerId = UUID.randomUUID();
     private final UUID sellerId = UUID.randomUUID();
     private Order delivered;
@@ -57,6 +59,9 @@ class ReviewsServiceTest {
         assertThat(view.review().sellerId()).isEqualTo(sellerId);
         assertThat(view.review().rating()).isEqualTo(5);
         assertThat(view.reviewerUsername()).isEqualTo("ana");
+        verify(notifications).send(org.mockito.ArgumentMatchers.argThat(n -> n.userId().equals(sellerId)
+                && n.type() == com.underart.domain.model.NotificationType.NEW_REVIEW
+                && n.message().equals("ana calificó «Marina» con 5 estrellas.")));
     }
 
     @Test

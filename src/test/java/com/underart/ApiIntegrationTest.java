@@ -298,6 +298,8 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<Integer>read(reviews, "$.items[0].rating")).isEqualTo(5);
         assertThat(JsonPath.<String>read(reviews, "$.items[0].reviewerUsername")).isEqualTo("u");
         call(get("/api/v1/users/" + UUID.randomUUID() + "/reviews"), null, null, 404);
+        assertThat(JsonPath.<java.util.List<String>>read(body(call(get("/api/v1/users/me/notifications?unreadOnly=true"),
+                artistToken, null, 200)), "$.items[*].type")).contains("NEW_REVIEW");
     }
 
     private void buyNowFlow(String artistToken, String thirdToken) throws Exception {

@@ -4,6 +4,8 @@ import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.ForbiddenOperationException;
 import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.model.Artwork;
+import com.underart.domain.model.Notification;
+import com.underart.domain.model.NotificationType;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PageResult;
@@ -13,6 +15,7 @@ import com.underart.domain.model.ReviewView;
 import com.underart.domain.model.ShippingStatus;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.ReviewsUseCase;
+import com.underart.domain.port.out.NotificationSenderPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.domain.port.out.ReviewRepositoryPort;
 import com.underart.domain.port.out.UserRepositoryPort;
@@ -31,6 +34,7 @@ public class ReviewsService implements ReviewsUseCase {
     private final OrderRepositoryPort orderRepository;
     private final UserRepositoryPort userRepository;
     private final OrderParties orderParties;
+    private final NotificationSenderPort notifications;
 
     @Override
     public ReviewView create(UUID orderId, UUID reviewerId, int rating, String comment) {
@@ -49,7 +53,12 @@ public class ReviewsService implements ReviewsUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("La obra de esta orden ya no existe"));
         Review saved = reviews.save(new Review(UUID.randomUUID(), orderId, reviewerId, artwork.artistId(), rating,
                 comment, Instant.now()));
-        return new ReviewView(saved, userRepository.findById(reviewerId).map(User::username).orElse(null));
+        String reviewer = userRepository.findById(reviewerId).map(User::username).orElse(null);
+        notifications.send(Notification.create(artwork.artistId(), NotificationType.NEW_REVIEW, "Recibiste una reseña",
+                (reviewer != null ? reviewer : "Un comprador") + " calificó «" + artwork.title() + "» con " + rating
+                        + (rating == 1 ? " estrella." : " estrellas."),
+                Map.of("orderId", orderId.toString(), "reviewId", saved.id().toString())));
+        return new ReviewView(saved, reviewer);
     }
 
     @Override
