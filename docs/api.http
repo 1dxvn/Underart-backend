@@ -1,0 +1,145 @@
+# Ejemplos de la API de Underart.
+# Ábrelo con la extensión "REST Client" de VS Code o con el cliente HTTP de IntelliJ.
+# Ejecuta las peticiones en orden: cada una reutiliza datos de las anteriores.
+
+@base = http://localhost:8080/api/v1
+@email = artista@underart.com
+@password = password123
+
+### Estado del servicio
+GET http://localhost:8080/actuator/health
+
+### Registro
+POST {{base}}/users/register
+Content-Type: application/json
+
+{
+  "username": "artista",
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "city": "Bogotá",
+  "shippingAddress": "Calle 100 #10-20"
+}
+
+### Login (guarda access y refresh token)
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "email": "{{email}}", "password": "{{password}}" }
+
+@token = {{login.response.body.accessToken}}
+@refresh = {{login.response.body.refreshToken}}
+
+### Renovar la sesión (rota el refresh token)
+# @name renewed
+POST {{base}}/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{refresh}}" }
+
+### Mi perfil
+GET {{base}}/users/me
+Authorization: Bearer {{token}}
+
+### Tasar una obra con IA sin crearla
+POST {{base}}/ai/valuations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "title": "Amanecer en el lago", "technique": "Acuarela", "dimensions": "30x40 cm" }
+
+### Crear una obra (la IA sugiere precio y etiquetas)
+# @name artwork
+POST {{base}}/artworks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Amanecer en el lago",
+  "description": "Acuarela sobre papel de algodón",
+  "technique": "Acuarela",
+  "weightKg": 1.2,
+  "dimensions": "30x40 cm"
+}
+
+@artworkId = {{artwork.response.body.id}}
+
+### Subir una imagen (multipart)
+POST {{base}}/artworks/{{artworkId}}/media
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=limite
+
+--limite
+Content-Disposition: form-data; name="file"; filename="obra.jpg"
+Content-Type: image/jpeg
+
+< ./obra.jpg
+--limite--
+
+### Pedir URL firmada para un video grande
+POST {{base}}/artworks/{{artworkId}}/media/upload-url
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "contentType": "video/mp4", "sizeBytes": 104857600 }
+
+### Detalle público de la obra (galería y favoritos)
+GET {{base}}/artworks/{{artworkId}}
+
+### Buscar obras: texto, rango de precio y orden
+GET {{base}}/artworks?q=amanecer&minPrice=100&maxPrice=1000&sort=suggestedPrice,asc
+
+### Crear una subasta con compra inmediata
+# @name auction
+POST {{base}}/auctions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "artworkId": "{{artworkId}}",
+  "type": "IMMEDIATE",
+  "basePrice": 100,
+  "immediatePurchasePrice": 500,
+  "endDate": "2030-01-01T00:00:00Z"
+}
+
+@auctionId = {{auction.response.body.id}}
+
+### Detalle de la subasta (precio actual y puja mínima)
+GET {{base}}/auctions/{{auctionId}}
+
+### Subastas activas que terminan pronto
+GET {{base}}/auctions?status=ACTIVE&sort=endDate,asc
+
+### Pujar (con otra cuenta: no se puede pujar en la obra propia)
+POST {{base}}/auctions/{{auctionId}}/bids
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "amount": 150 }
+
+### Mis notificaciones sin leer
+GET {{base}}/users/me/notifications?unreadOnly=true
+Authorization: Bearer {{token}}
+
+### Contador de no leídas
+GET {{base}}/users/me/notifications/unread-count
+Authorization: Bearer {{token}}
+
+### Mis estadísticas
+GET {{base}}/users/me/stats
+Authorization: Bearer {{token}}
+
+### Registrar método de pago (en modo simulado cualquier texto vale; tok_fail... se rechaza)
+PUT {{base}}/users/me/payment-method
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "paymentToken": "pm_card_visa" }
+
+### Cerrar sesión
+POST {{base}}/auth/logout
+Content-Type: application/json
+
+{ "refreshToken": "{{renewed.response.body.refreshToken}}" }
