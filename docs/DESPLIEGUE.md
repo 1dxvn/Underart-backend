@@ -108,9 +108,20 @@ En el servicio, **Environment**, define:
 | `PAYMENT_PROVIDER`, `STRIPE_SECRET_KEY` | `simulated` por defecto; ver la sección de Stripe |
 
 Opcionales: `GROQ_MODEL` (por defecto `llama-3.3-70b-versatile`), `OPENAI_MODEL` (`gpt-4o-mini`),
-`JWT_EXPIRATION_MS` (24 h), `DB_POOL_SIZE` (5), `AUCTIONS_CLOSING_INTERVAL_MS` (60000).
+`JWT_EXPIRATION_MS` (900000, 15 minutos), `AUTH_REFRESH_TOKEN_TTL` (`P30D`, duración ISO-8601 de la sesión),
+`DB_POOL_SIZE` (5), `AUCTIONS_CLOSING_INTERVAL_MS` (60000).
 
 Si `JWT_SECRET` tiene menos de 32 caracteres, la app se niega a arrancar con un mensaje claro en los logs.
+Cambiar `JWT_SECRET` invalida los access tokens emitidos; los refresh tokens siguen valiendo porque se
+guardan en PostgreSQL. Para cerrar todas las sesiones, vacía la tabla `refresh_tokens`.
+
+Requisitos y límites a tener en cuenta:
+
+- **MongoDB es obligatorio al arrancar**: la app crea los índices de notificaciones al iniciar y no arranca
+  si `MONGO_URI` no responde.
+- **Una sola instancia**: el bloqueo de login y el límite de usos de IA se guardan en memoria. Con varias
+  instancias cada una llevaría su propia cuenta; para escalar habría que moverlos a Redis.
+- Las sesiones caducadas se purgan una vez al día de forma automática.
 
 El health check de Render apunta a `/actuator/health` (está en `render.yaml`). Si creaste el servicio
 a mano y no desde el blueprint, configúralo en **Settings → Health Check Path**.
@@ -126,7 +137,7 @@ a mano y no desde el blueprint, configúralo en **Settings → Health Check Path
    ```
 
 3. Abre `https://underart-backend.onrender.com/swagger-ui/index.html`, regístrate, haz login y pulsa
-   **Authorize** con el token.
+   **Authorize** con el `accessToken` que devuelve el login.
 
 En el plan gratuito, el servicio se duerme tras un rato sin tráfico y la primera petición tarda
 entre 30 y 60 segundos. Antes de una demo, abre la URL unos minutos antes.
