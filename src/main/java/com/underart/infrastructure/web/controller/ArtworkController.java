@@ -1,5 +1,6 @@
 package com.underart.infrastructure.web.controller;
 
+import com.underart.application.dto.ArtworkDetailResponse;
 import com.underart.application.dto.ArtworkResponse;
 import com.underart.application.dto.CreateArtworkRequest;
 import com.underart.application.dto.PageResponse;
@@ -79,16 +80,17 @@ public class ArtworkController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ArtworkResponse> findById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ArtworkResponse.from(findArtworkUseCase.findById(id)));
+    public ResponseEntity<ArtworkDetailResponse> findById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ArtworkDetailResponse.from(findArtworkUseCase.findDetails(id)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ArtworkResponse> update(@PathVariable UUID id,
                                                   @Valid @RequestBody UpdateArtworkRequest req) {
-        return ResponseEntity.ok(ArtworkResponse.from(updateArtworkUseCase.update(new UpdateArtworkCommand(
-                id, currentUser.currentUserId(), req.title(), req.description(), req.technique(),
-                req.weightKg(), req.dimensions()))));
+        updateArtworkUseCase.update(new UpdateArtworkCommand(id, currentUser.currentUserId(), req.title(),
+                req.description(), req.technique(), req.weightKg(), req.dimensions()));
+        FindArtworkUseCase.ArtworkDetails details = findArtworkUseCase.findDetails(id);
+        return ResponseEntity.ok(ArtworkResponse.from(details.artwork(), details.coverUrl()));
     }
 
     @DeleteMapping("/{id}")

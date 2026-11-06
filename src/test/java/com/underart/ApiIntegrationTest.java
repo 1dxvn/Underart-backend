@@ -92,7 +92,7 @@ class ApiIntegrationTest {
 
         String artworkId = createArtwork(artistToken, "Amanecer en el lago");
         assertThat(this.<Double>read(call(get("/api/v1/artworks/" + artworkId), buyerToken, null, 200),
-                "$.suggestedPrice")).isEqualTo(300.0);
+                "$.artwork.suggestedPrice")).isEqualTo(300.0);
         assertThat(total(call(get("/api/v1/artworks?q=amanecer&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
         assertThat(total(call(get("/api/v1/artworks?tag=PAISAJE&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
         assertThat(total(call(get("/api/v1/artworks?technique=bronce&artistId=" + artistId), buyerToken, null, 200))).isZero();
@@ -149,7 +149,11 @@ class ApiIntegrationTest {
     }
 
     private void publicCatalogFlow(String artworkId, String artistId) throws Exception {
-        call(get("/api/v1/artworks/" + artworkId), null, null, 200);
+        String detail = body(call(get("/api/v1/artworks/" + artworkId), null, null, 200));
+        assertThat(JsonPath.<String>read(detail, "$.artwork.coverUrl")).isEqualTo(JsonPath.read(detail, "$.media[0].url"));
+        assertThat(JsonPath.<Integer>read(detail, "$.media.length()")).isEqualTo(2);
+        assertThat(this.<String>read(call(get("/api/v1/artworks?artistId=" + artistId), null, null, 200),
+                "$.items[0].coverUrl")).startsWith("https://cdn.test/");
         call(get("/api/v1/artworks/" + artworkId + "/media"), null, null, 200);
         assertThat(total(call(get("/api/v1/artworks?artistId=" + artistId), null, null, 200))).isPositive();
         call(get("/api/v1/auctions"), null, null, 200);
