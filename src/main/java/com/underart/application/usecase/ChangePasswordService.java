@@ -7,7 +7,9 @@ import com.underart.domain.port.in.ChangePasswordUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.PasswordHasherPort;
+import com.underart.domain.port.out.RefreshTokenRepositoryPort;
 import com.underart.domain.port.out.UserRepositoryPort;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
     private final UserRepositoryPort userRepository;
     private final PasswordHasherPort passwordHasher;
     private final ActivityLogRepositoryPort activityLogRepository;
+    private final RefreshTokenRepositoryPort refreshTokens;
 
     @Override
     public void change(UUID userId, String currentPassword, String newPassword) {
@@ -35,6 +38,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
         userRepository.save(new User(user.id(), user.username(), user.email(),
                 passwordHasher.hash(newPassword), user.city(), user.shippingAddress(),
                 user.paymentToken(), user.createdAt()));
-        activityLogRepository.log("PASSWORD_CHANGED", "Contraseña actualizada", userId, Map.of());
+        refreshTokens.revokeAllForUser(userId, Instant.now());
+        activityLogRepository.log("PASSWORD_CHANGED", "Contraseña actualizada; sesiones cerradas", userId, Map.of());
     }
 }

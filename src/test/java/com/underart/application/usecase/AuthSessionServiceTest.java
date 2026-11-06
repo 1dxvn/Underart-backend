@@ -112,4 +112,17 @@ class AuthSessionServiceTest {
         assertThatThrownBy(() -> service.refresh("caducado")).isInstanceOf(InvalidSessionException.class);
         assertThatThrownBy(() -> service.refresh("inventado")).isInstanceOf(InvalidSessionException.class);
     }
+
+    @Test
+    void logoutRevokesTheFamilyAndIsIdempotent() {
+        RefreshToken token = new RefreshToken(UUID.randomUUID(), user.id(), AuthSessionService.hash("activo"),
+                UUID.randomUUID(), Instant.now().plusSeconds(3600), Instant.now(), null, null);
+        when(tokens.findByTokenHash(AuthSessionService.hash("activo"))).thenReturn(Optional.of(token));
+        when(tokens.findByTokenHash(AuthSessionService.hash("desconocido"))).thenReturn(Optional.empty());
+
+        service.logout("activo");
+        service.logout("desconocido");
+
+        verify(tokens).revokeFamily(org.mockito.ArgumentMatchers.eq(token.familyId()), any(Instant.class));
+    }
 }

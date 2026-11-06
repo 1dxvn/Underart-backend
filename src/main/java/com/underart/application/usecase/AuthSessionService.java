@@ -70,6 +70,13 @@ public class AuthSessionService implements AuthSessionUseCase {
         return next.session();
     }
 
+    @Override
+    public void logout(String rawRefreshToken) {
+        refreshTokens.findByTokenHash(hash(rawRefreshToken))
+                .filter(token -> !token.isRevoked())
+                .ifPresent(token -> refreshTokens.revokeFamily(token.familyId(), Instant.now()));
+    }
+
     private OpenedSession openSession(User user, UUID familyId) {
         String rawRefreshToken = newRawToken();
         Instant now = Instant.now();

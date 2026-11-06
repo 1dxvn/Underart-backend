@@ -233,8 +233,13 @@ class ApiIntegrationTest {
                 "{\"username\":\"comprador\",\"city\":\"Medellín\"}", 200), "$.username")).isEqualTo("comprador");
         call(put("/api/v1/users/me/password"), buyerToken,
                 "{\"currentPassword\":\"incorrecta\",\"newPassword\":\"nueva-clave-123\"}", 400);
+        String refreshBeforeChange = read(call(post("/api/v1/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200), "$.refreshToken");
+        call(put("/api/v1/users/me/password"), buyerToken,
+                "{\"currentPassword\":\"password123\",\"newPassword\":\"solo-letras\"}", 400);
         call(put("/api/v1/users/me/password"), buyerToken,
                 "{\"currentPassword\":\"password123\",\"newPassword\":\"nueva-clave-123\"}", 204);
+        call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + refreshBeforeChange + "\"}", 401);
         call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"nueva-clave-123\"}", 200);
     }
@@ -252,6 +257,12 @@ class ApiIntegrationTest {
 
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + firstRefresh + "\"}", 401);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + secondRefresh + "\"}", 401);
+
+        String other = read(call(post("/api/v1/auth/login"), null,
+                "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200), "$.refreshToken");
+        call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
+        call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
+        call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + other + "\"}", 401);
     }
 
     private String createArtwork(String token, String title) throws Exception {

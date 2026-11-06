@@ -8,6 +8,8 @@ public interface AuthSessionUseCase {
 
     Session refresh(String refreshToken);
 
+    void logout(String refreshToken);
+
     record Session(User user, String accessToken, long expiresInSeconds, String refreshToken) {
     }
 }

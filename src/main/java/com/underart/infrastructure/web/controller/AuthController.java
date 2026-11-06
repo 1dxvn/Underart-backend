@@ -28,4 +28,10 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest req) {
         return ResponseEntity.ok(AuthResponse.from(authSessionUseCase.refresh(req.refreshToken())));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest req) {
+        authSessionUseCase.logout(req.refreshToken());
+        return ResponseEntity.noContent().build();
+    }
 }
