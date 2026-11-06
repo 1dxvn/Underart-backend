@@ -3,6 +3,7 @@ package com.underart.application.facade;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.AuctionStatus;
+import com.underart.domain.model.AuctionSummary;
 import com.underart.domain.model.Bid;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PageQuery;
@@ -24,7 +25,8 @@ public class AuctionFacade {
     private final ListAuctionsUseCase listAuctionsUseCase;
 
     public List<Auction> listActive() {
-        return listAuctionsUseCase.list(AuctionSearchCriteria.byStatus(AuctionStatus.ACTIVE), PageQuery.first()).items();
+        return listAuctionsUseCase.list(AuctionSearchCriteria.byStatus(AuctionStatus.ACTIVE), PageQuery.first())
+                .items().stream().map(AuctionSummary::auction).toList();
     }
 
     public Bid placeBid(UUID auctionId, UUID buyerId, BigDecimal amount) {

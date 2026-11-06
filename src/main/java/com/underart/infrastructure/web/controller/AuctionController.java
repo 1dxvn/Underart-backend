@@ -65,7 +65,8 @@ public class AuctionController {
         Auction auction = createAuctionUseCase.create(new CreateAuctionCommand(
                 currentUser.currentUserId(), req.artworkId(), req.type(), req.basePrice(),
                 req.immediatePurchasePrice(), req.startDate(), req.endDate()));
-        return ResponseEntity.status(HttpStatus.CREATED).body(AuctionResponse.from(auction));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(AuctionResponse.from(findAuctionUseCase.findById(auction.id()).summary()));
     }
 
     @DeleteMapping("/{id}")

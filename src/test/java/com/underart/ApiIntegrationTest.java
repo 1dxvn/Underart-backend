@@ -176,8 +176,13 @@ class ApiIntegrationTest {
 
         String detail = body(call(get("/api/v1/auctions/" + auctionId), null, null, 200));
         call(get(bids), null, null, 401);
-        assertThat(JsonPath.<Double>read(detail, "$.currentPrice")).isEqualTo(200.0);
-        assertThat(JsonPath.<Integer>read(detail, "$.bidCount")).isEqualTo(2);
+        assertThat(JsonPath.<Double>read(detail, "$.auction.currentPrice")).isEqualTo(200.0);
+        assertThat(JsonPath.<Integer>read(detail, "$.auction.bidCount")).isEqualTo(2);
+        assertThat(JsonPath.<String>read(detail, "$.auction.artworkTitle")).isEqualTo("Amanecer");
+        assertThat(JsonPath.<String>read(detail, "$.auction.coverUrl")).startsWith("https://cdn.test/artworks/");
+        String listed = body(call(get("/api/v1/auctions?artworkId=" + artworkId), null, null, 200));
+        assertThat(JsonPath.<Double>read(listed, "$.items[0].currentPrice")).isEqualTo(200.0);
+        assertThat(JsonPath.<Integer>read(listed, "$.items[0].bidCount")).isEqualTo(2);
         assertThat(JsonPath.<Double>read(detail, "$.minimumNextBid")).isEqualTo(210.0);
         call(post(bids), buyerToken, "{\"amount\":209.99}", 400);
         assertThat(this.<Double>read(call(get(bids), buyerToken, null, 200), "$.items[0].amount")).isEqualTo(200.0);
