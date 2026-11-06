@@ -6,6 +6,8 @@ import com.underart.application.dto.PageResponse;
 import com.underart.application.dto.UpdateArtworkRequest;
 import com.underart.domain.model.Artwork;
 import com.underart.domain.model.ArtworkSearchCriteria;
+import com.underart.domain.model.ArtworkSortField;
+import com.underart.domain.model.PriceRange;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.port.in.CreateArtworkUseCase;
 import com.underart.domain.port.in.CreateArtworkUseCase.CreateArtworkCommand;
@@ -15,7 +17,10 @@ import com.underart.domain.port.in.ListArtworksUseCase;
 import com.underart.domain.port.in.UpdateArtworkUseCase;
 import com.underart.domain.port.in.UpdateArtworkUseCase.UpdateArtworkCommand;
 import com.underart.infrastructure.security.CurrentUserProvider;
+import com.underart.infrastructure.web.SortParam;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/artworks")
 @RequiredArgsConstructor
 public class ArtworkController {
+
+    private static final Map<String, ArtworkSortField> SORT_FIELDS = Map.of(
+            "createdAt", ArtworkSortField.CREATED_AT,
+            "suggestedPrice", ArtworkSortField.SUGGESTED_PRICE,
+            "title", ArtworkSortField.TITLE);
 
     private final CurrentUserProvider currentUser;
     private final CreateArtworkUseCase createArtworkUseCase;
@@ -56,10 +66,15 @@ public class ArtworkController {
             @RequestParam(required = false) String technique,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
+        SortParam<ArtworkSortField> order = SortParam.parse(sort, SORT_FIELDS, ArtworkSortField.CREATED_AT, false);
         return ResponseEntity.ok(PageResponse.from(listArtworksUseCase.list(
-                new ArtworkSearchCriteria(artistId, technique, tag, q), PageQuery.of(page, size)),
+                new ArtworkSearchCriteria(artistId, technique, tag, q, new PriceRange(minPrice, maxPrice),
+                        order.field(), order.ascending()), PageQuery.of(page, size)),
                 ArtworkResponse::from));
     }
 

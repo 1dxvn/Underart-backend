@@ -107,6 +107,7 @@ class ApiIntegrationTest {
         String orderId = closingFlow(artistToken, buyerToken, thirdToken);
         paymentFlow(orderId, buyerToken);
         buyNowFlow(artistToken, thirdToken);
+        searchFlow(artistId);
         accountFlow(buyerToken, "buyer-" + unique + "@test.com");
         sessionFlow("third-" + unique + "@test.com");
         lockoutFlow("locked-" + unique + "@test.com");
@@ -279,6 +280,20 @@ class ApiIntegrationTest {
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/logout"), null, "{\"refreshToken\":\"" + other + "\"}", 204);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + other + "\"}", 401);
+    }
+
+    private void searchFlow(String artistId) throws Exception {
+        String byArtist = "/api/v1/artworks?artistId=" + artistId;
+        assertThat(this.<String>read(call(get(byArtist + "&sort=title,asc"), null, null, 200), "$.items[0].title"))
+                .isEqualTo("Amanecer");
+        assertThat(this.<String>read(call(get(byArtist + "&sort=title,desc"), null, null, 200), "$.items[0].title"))
+                .isEqualTo("Nocturno");
+        assertThat(total(call(get(byArtist + "&minPrice=300&maxPrice=300"), null, null, 200))).isEqualTo(3);
+        assertThat(total(call(get(byArtist + "&minPrice=301"), null, null, 200))).isZero();
+        call(get(byArtist + "&minPrice=500&maxPrice=100"), null, null, 400);
+        call(get(byArtist + "&sort=passwordHash,asc"), null, null, 400);
+        assertThat(total(call(get("/api/v1/auctions?artistId=" + artistId + "&minPrice=100&sort=basePrice,desc"),
+                null, null, 200))).isEqualTo(3);
     }
 
     private void lockoutFlow(String email) throws Exception {

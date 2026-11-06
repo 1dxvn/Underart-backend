@@ -12,7 +12,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -47,7 +46,7 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     @Override
     public PageResult<Artwork> search(ArtworkSearchCriteria criteria, PageQuery page) {
         return PageMapper.toResult(repository.findAll(SearchSpecifications.artworks(criteria),
-                PageMapper.toPageable(page, Sort.by(Sort.Direction.DESC, "createdAt"))), ArtworkMapper::toDomain);
+                PageMapper.toPageable(page, SearchSpecifications.artworkSort(criteria))), ArtworkMapper::toDomain);
     }
 
     @Override

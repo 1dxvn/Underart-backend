@@ -6,17 +6,22 @@ import com.underart.application.dto.CreateAuctionRequest;
 import com.underart.application.dto.PageResponse;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionSearchCriteria;
+import com.underart.domain.model.AuctionSortField;
 import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.AuctionType;
 import com.underart.domain.model.PageQuery;
+import com.underart.domain.model.PriceRange;
 import com.underart.domain.port.in.CancelAuctionUseCase;
 import com.underart.domain.port.in.CreateAuctionUseCase;
 import com.underart.domain.port.in.CreateAuctionUseCase.CreateAuctionCommand;
 import com.underart.domain.port.in.FindAuctionUseCase;
 import com.underart.domain.port.in.ListAuctionsUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
+import com.underart.infrastructure.web.SortParam;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,6 +40,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuctionController {
 
+    private static final Map<String, AuctionSortField> SORT_FIELDS = Map.of(
+            "endDate", AuctionSortField.END_DATE,
+            "startDate", AuctionSortField.START_DATE,
+            "basePrice", AuctionSortField.BASE_PRICE);
+
     private final CurrentUserProvider currentUser;
     private final ListAuctionsUseCase listAuctionsUseCase;
     private final CreateAuctionUseCase createAuctionUseCase;
@@ -48,10 +58,15 @@ public class AuctionController {
             @RequestParam(required = false) UUID artworkId,
             @RequestParam(required = false) UUID artistId,
             @RequestParam(required = false) Instant endingBefore,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
+        SortParam<AuctionSortField> order = SortParam.parse(sort, SORT_FIELDS, AuctionSortField.END_DATE, true);
         return ResponseEntity.ok(PageResponse.from(listAuctionsUseCase.list(
-                new AuctionSearchCriteria(status, type, artworkId, artistId, endingBefore),
+                new AuctionSearchCriteria(status, type, artworkId, artistId, endingBefore,
+                        new PriceRange(minPrice, maxPrice), order.field(), order.ascending()),
                 PageQuery.of(page, size)), AuctionResponse::from));
     }
 
