@@ -13,6 +13,9 @@ import com.underart.domain.port.in.RegisterUserUseCase.RegisterUserCommand;
 import com.underart.domain.port.in.ReviewsUseCase;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Usuarios", description = "Registro y perfiles públicos")
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
@@ -34,6 +38,8 @@ public class UserController {
     private final ReviewsUseCase reviewsUseCase;
 
     @PostMapping("/register")
+    @Operation(summary = "Registrar un usuario")
+    @SecurityRequirements
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterUserRequest req) {
         User user = registerUseCase.register(new RegisterUserCommand(
                 req.username(), req.email(), req.password(), req.city(), req.shippingAddress()));
@@ -41,11 +47,15 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Perfil público con valoración media")
+    @SecurityRequirements
     public ResponseEntity<PublicUserResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(PublicUserResponse.from(findUserUseCase.findById(id), reviewsUseCase.ratingOf(id)));
     }
 
     @GetMapping("/{id}/reviews")
+    @Operation(summary = "Reseñas recibidas por un vendedor")
+    @SecurityRequirements
     public ResponseEntity<PageResponse<ReviewResponse>> reviews(@PathVariable UUID id,
                                                                 @RequestParam(required = false) Integer page,
                                                                 @RequestParam(required = false) Integer size) {
