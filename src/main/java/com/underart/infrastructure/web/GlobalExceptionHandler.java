@@ -9,11 +9,13 @@ import com.underart.domain.exception.InvalidSessionException;
 import com.underart.domain.exception.MediaStorageException;
 import com.underart.domain.exception.PaymentFailedException;
 import com.underart.domain.exception.ResourceNotFoundException;
+import com.underart.domain.exception.TooManyRequestsException;
 import java.time.Instant;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -65,6 +67,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleStorage(MediaStorageException ex) {
         log.error("Error de almacenamiento: {}", ex.getMessage(), ex.getCause());
         return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiError> handleTooManyRequests(TooManyRequestsException ex) {
+        ResponseEntity<ApiError> body = build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        return ResponseEntity.status(body.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.retryAfterSeconds()))
+                .body(body.getBody());
     }
 
     @ExceptionHandler(InvalidSessionException.class)
