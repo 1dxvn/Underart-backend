@@ -19,10 +19,18 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_EXPIRATION_MS
+        value: "900000"
+      - key: AUTH_REFRESH_TOKEN_TTL
+        value: P30D
       - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: OPENAI_API_KEY
         sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: PAYMENT_PROVIDER
