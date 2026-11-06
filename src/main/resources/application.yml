@@ -28,6 +28,7 @@ spring:
   data:
     mongodb:
       uri: ${MONGO_URI}
+      auto-index-creation: true
   servlet:
     multipart:
       max-file-size: 50MB
