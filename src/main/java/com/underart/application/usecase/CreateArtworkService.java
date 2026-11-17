@@ -1,10 +1,12 @@
 package com.underart.application.usecase;
 
+import com.underart.domain.exception.AiProviderException;
+import com.underart.domain.exception.TooManyRequestsException;
 import com.underart.domain.model.AiResult;
 import com.underart.domain.model.Artwork;
 import com.underart.domain.port.in.CreateArtworkUseCase;
-import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiGenerationRepositoryPort.AiGenerationRecord;
+import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiProviderPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.RateLimiterPort;
@@ -12,8 +14,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CreateArtworkService implements CreateArtworkUseCase {
@@ -25,16 +29,28 @@ public class CreateArtworkService implements CreateArtworkUseCase {
 
     @Override
     public Artwork create(CreateArtworkCommand cmd) {
-        AiUsagePolicy.consume(rateLimiter, cmd.artistId());
-        AiResult aiResult = aiProvider.valuateArtwork(cmd.title(), cmd.technique(), cmd.dimensions());
-        List<String> tags = aiProvider.generateTags(cmd.title(), cmd.description());
-
-        aiGenerationRepository.save(new AiGenerationRecord(aiResult.provider(), cmd.title(),
-                aiResult.suggestedPrice(), tags, aiResult.rawJson()));
+        AiResult aiResult = null;
+        List<String> tags = List.of();
+        try {
+            AiUsagePolicy.consume(rateLimiter, cmd.artistId());
+            aiResult = aiProvider.valuateArtwork(cmd.title(), cmd.technique(), cmd.dimensions());
+            tags = aiResult.tags();
+        } catch (AiProviderException
+                 | TooManyRequestsException e) {
+            log.warn("Artwork created without AI suggestions: {}", e.getMessage());
+        }
+        if (aiResult != null) {
+            try {
+                aiGenerationRepository.save(new AiGenerationRecord(aiResult.provider(), cmd.title(),
+                        aiResult.suggestedPrice(), tags, aiResult.rawJson()));
+            } catch (RuntimeException e) {
+                log.warn("Could not record AI generation", e);
+            }
+        }
 
         Artwork artwork = new Artwork(UUID.randomUUID(), cmd.artistId(), cmd.title(),
                 cmd.description(), cmd.technique(), cmd.weightKg(), cmd.dimensions(),
-                aiResult.suggestedPrice(), tags, Instant.now());
+                aiResult == null ? null : aiResult.suggestedPrice(), tags, Instant.now());
         return artworkRepository.save(artwork);
     }
 }
