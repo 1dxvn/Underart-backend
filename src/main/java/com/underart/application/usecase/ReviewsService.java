@@ -39,24 +39,24 @@ public class ReviewsService implements ReviewsUseCase {
     @Override
     public ReviewView create(UUID orderId, UUID reviewerId, int rating, String comment) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
         if (!order.winnerId().equals(reviewerId)) {
-            throw new ForbiddenOperationException("Solo el comprador puede reseñar esta orden");
+            throw new ForbiddenOperationException("Only the buyer can review this order");
         }
         if (order.shippingStatus() != ShippingStatus.DELIVERED) {
-            throw new BusinessRuleException("Solo puedes reseñar después de confirmar la entrega");
+            throw new BusinessRuleException("Reviews require confirmed delivery");
         }
         if (reviews.existsByOrderId(orderId)) {
-            throw new BusinessRuleException("Ya reseñaste esta orden");
+            throw new BusinessRuleException("This order has already been reviewed");
         }
         Artwork artwork = orderParties.artworkOf(order)
-                .orElseThrow(() -> new ResourceNotFoundException("La obra de esta orden ya no existe"));
+                .orElseThrow(() -> new ResourceNotFoundException("The artwork for this order no longer exists"));
         Review saved = reviews.save(new Review(UUID.randomUUID(), orderId, reviewerId, artwork.artistId(), rating,
                 comment, Instant.now()));
         String reviewer = userRepository.findById(reviewerId).map(User::username).orElse(null);
-        notifications.send(Notification.create(artwork.artistId(), NotificationType.NEW_REVIEW, "Recibiste una reseña",
-                (reviewer != null ? reviewer : "Un comprador") + " calificó «" + artwork.title() + "» con " + rating
-                        + (rating == 1 ? " estrella." : " estrellas."),
+        notifications.send(Notification.create(artwork.artistId(), NotificationType.NEW_REVIEW, "You received a review",
+                (reviewer != null ? reviewer : "A buyer") + " rated «" + artwork.title() + "» with " + rating
+                        + (rating == 1 ? " estrella." : " stars."),
                 Map.of("orderId", orderId.toString(), "reviewId", saved.id().toString())));
         return new ReviewView(saved, reviewer);
     }

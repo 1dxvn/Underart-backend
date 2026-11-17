@@ -54,28 +54,28 @@ class ReviewsServiceTest {
 
     @Test
     void buyerReviewsTheSellerAfterDelivery() {
-        ReviewView view = service.create(delivered.id(), buyerId, 5, "Muy bien");
+        ReviewView view = service.create(delivered.id(), buyerId, 5, "Very good");
 
         assertThat(view.review().sellerId()).isEqualTo(sellerId);
         assertThat(view.review().rating()).isEqualTo(5);
         assertThat(view.reviewerUsername()).isEqualTo("ana");
         verify(notifications).send(org.mockito.ArgumentMatchers.argThat(n -> n.userId().equals(sellerId)
                 && n.type() == com.underart.domain.model.NotificationType.NEW_REVIEW
-                && n.message().equals("ana calificó «Marina» con 5 estrellas.")));
+                && n.message().equals("ana rated «Marina» with 5 stars.")));
     }
 
     @Test
     void cannotReviewTwiceOrBeforeDeliveryOrAsAnotherUser() {
         when(reviews.existsByOrderId(delivered.id())).thenReturn(true);
         assertThatThrownBy(() -> service.create(delivered.id(), buyerId, 5, null))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("Ya reseñaste esta orden");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("This order has already been reviewed");
         assertThatThrownBy(() -> service.create(delivered.id(), sellerId, 5, null))
                 .isInstanceOf(ForbiddenOperationException.class);
 
         Order paidOnly = Order.pending(UUID.randomUUID(), buyerId, BigDecimal.TEN).withPaymentStatus(PaymentStatus.PAID);
         when(orders.findById(paidOnly.id())).thenReturn(Optional.of(paidOnly));
         assertThatThrownBy(() -> service.create(paidOnly.id(), buyerId, 5, null))
-                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("confirmar la entrega");
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("confirmed delivery");
         verify(reviews, never()).save(any());
     }
 }

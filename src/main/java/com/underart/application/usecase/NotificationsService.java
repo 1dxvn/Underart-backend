@@ -29,7 +29,7 @@ public class NotificationsService implements NotificationsUseCase {
     @Override
     public void markRead(UUID userId, String notificationId) {
         if (!notifications.markRead(notificationId, userId)) {
-            throw new ResourceNotFoundException("Notificación no encontrada: " + notificationId);
+            throw new ResourceNotFoundException("Notification not found: " + notificationId);
         }
     }
 

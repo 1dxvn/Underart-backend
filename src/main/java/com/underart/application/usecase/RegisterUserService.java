@@ -23,7 +23,7 @@ public class RegisterUserService implements RegisterUserUseCase {
         PasswordPolicy.require(cmd.password());
         String email = EmailNormalizer.normalize(cmd.email());
         if (userRepository.existsByEmail(email)) {
-            throw new BusinessRuleException("El email ya está registrado");
+            throw new BusinessRuleException("Email is already registered");
         }
         User user = new User(UUID.randomUUID(), cmd.username().trim(), email,
                 passwordHasher.hash(cmd.password()), cmd.city(), cmd.shippingAddress(),

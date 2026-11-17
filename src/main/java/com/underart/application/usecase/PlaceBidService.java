@@ -39,40 +39,40 @@ public class PlaceBidService implements PlaceBidUseCase {
     @Transactional
     public Bid place(UUID auctionId, UUID buyerId, BigDecimal amount) {
         Auction auction = auctionRepository.findByIdForUpdate(auctionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subasta no encontrada: " + auctionId));
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found: " + auctionId));
         Instant now = Instant.now();
         if (!auction.isActive()) {
-            throw new BusinessRuleException("La subasta no está activa");
+            throw new BusinessRuleException("The auction is not active");
         }
         if (!auction.hasStarted(now)) {
-            throw new BusinessRuleException("La subasta aún no ha comenzado");
+            throw new BusinessRuleException("The auction has not started");
         }
         if (auction.hasEnded(now)) {
-            throw new BusinessRuleException("La subasta ya terminó");
+            throw new BusinessRuleException("The auction has ended");
         }
         Artwork artwork = ArtworkOwnership.requireExisting(artworkRepository, auction.artworkId());
         if (artwork.artistId().equals(buyerId)) {
-            throw new BusinessRuleException("No puedes pujar en tu propia obra");
+            throw new BusinessRuleException("You cannot bid on your own artwork");
         }
         Optional<Bid> previous = bidRepository.findHighestBid(auctionId);
         BigDecimal highest = previous.map(Bid::amount).orElse(null);
         BigDecimal minimum = BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest);
         if (amount.compareTo(minimum) < 0) {
-            throw new InvalidBidException("La puja mínima es " + minimum.toPlainString());
+            throw new InvalidBidException("The minimum bid is " + minimum.toPlainString());
         }
         Bid saved = bidRepository.save(new Bid(UUID.randomUUID(), auctionId, buyerId, amount, now));
         AntiSnipingPolicy.extendedEnd(auction.endDate(), now).ifPresent(newEnd -> {
             auctionRepository.save(auction.withEndDate(newEnd));
-            activityLogRepository.log("AUCTION_EXTENDED", "Subasta " + auctionId + " prorrogada por una puja de último momento",
+            activityLogRepository.log("AUCTION_EXTENDED", "Auction " + auctionId + " extended by a last-minute bid",
                     buyerId, Map.of("auctionId", auctionId.toString(), "newEndDate", newEnd.toString()));
         });
         previous.filter(bid -> !bid.buyerId().equals(buyerId)).ifPresent(outbid ->
                 notifications.send(Notification.create(outbid.buyerId(), NotificationType.OUTBID,
-                        "Te superaron en una puja",
-                        "Alguien ofreció " + amount.toPlainString() + " por «" + artwork.title()
-                                + "». Puja de nuevo antes de que termine.",
+                        "You have been outbid",
+                        "Someone bid " + amount.toPlainString() + " for «" + artwork.title()
+                                + "». Bid again before the auction ends.",
                         Map.of("auctionId", auctionId.toString(), "artworkId", artwork.id().toString()))));
-        activityLogRepository.log("BID_PLACED", "Puja de " + amount + " en subasta " + auctionId,
+        activityLogRepository.log("BID_PLACED", "Bid of " + amount + " on auction " + auctionId,
                 buyerId, Map.of("amount", amount, "auctionId", auctionId.toString()));
         return saved;
     }

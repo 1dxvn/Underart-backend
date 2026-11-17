@@ -56,7 +56,7 @@ class PlaceBidServiceTest {
     void rejectsBidOnEndedAuction() {
         givenAuction(Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("La subasta ya terminó");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("The auction has ended");
         verify(bids, never()).save(any());
     }
 
@@ -64,14 +64,14 @@ class PlaceBidServiceTest {
     void rejectsBidBeforeStart() {
         givenAuction(Instant.now().plusSeconds(600), Instant.now().plusSeconds(7200));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("La subasta aún no ha comenzado");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("The auction has not started");
     }
 
     @Test
     void rejectsBidOnOwnArtwork() {
         givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
         assertThatThrownBy(() -> service.place(auctionId, artistId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("No puedes pujar en tu propia obra");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("You cannot bid on your own artwork");
     }
 
     @Test
@@ -87,7 +87,7 @@ class PlaceBidServiceTest {
         when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
                 new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("200")))
-                .isInstanceOf(InvalidBidException.class).hasMessage("La puja mínima es 210.00");
+                .isInstanceOf(InvalidBidException.class).hasMessage("The minimum bid is 210.00");
     }
 
     @Test

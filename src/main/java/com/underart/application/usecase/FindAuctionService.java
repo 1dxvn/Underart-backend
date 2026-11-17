@@ -22,7 +22,7 @@ public class FindAuctionService implements FindAuctionUseCase {
     @Override
     public AuctionDetails findById(UUID id) {
         Auction auction = auctionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subasta no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found: " + id));
         Bid highest = bidRepository.findHighestBid(id).orElse(null);
         return new AuctionDetails(summaryAssembler.summarize(auction), highest,
                 BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest != null ? highest.amount() : null));

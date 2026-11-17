@@ -24,7 +24,7 @@ public class FindArtworkService implements FindArtworkUseCase {
     @Override
     public Artwork findById(UUID id) {
         return artworkRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Obra no encontrada: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Artwork not found: " + id));
     }
 
     @Override

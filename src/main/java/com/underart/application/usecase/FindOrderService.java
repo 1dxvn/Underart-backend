@@ -19,9 +19,9 @@ public class FindOrderService implements FindOrderUseCase {
     @Override
     public Order findById(UUID orderId, UUID requesterId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
         if (!order.winnerId().equals(requesterId) && !orderParties.isSeller(order, requesterId)) {
-            throw new ForbiddenOperationException("No tienes acceso a esta orden");
+            throw new ForbiddenOperationException("You cannot access this order");
         }
         return order;
     }

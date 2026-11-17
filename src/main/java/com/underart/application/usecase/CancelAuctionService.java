@@ -28,16 +28,16 @@ public class CancelAuctionService implements CancelAuctionUseCase {
     @Transactional
     public void cancel(UUID auctionId, UUID requesterId) {
         Auction auction = auctionRepository.findByIdForUpdate(auctionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subasta no encontrada: " + auctionId));
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found: " + auctionId));
         ArtworkOwnership.requireOwned(artworkRepository, auction.artworkId(), requesterId);
         if (!auction.isActive()) {
-            throw new BusinessRuleException("Solo se pueden cancelar subastas activas");
+            throw new BusinessRuleException("Only active auctions can be cancelled");
         }
         if (bidRepository.countByAuctionId(auctionId) > 0) {
-            throw new BusinessRuleException("No se puede cancelar una subasta que ya tiene pujas");
+            throw new BusinessRuleException("Auctions with bids cannot be cancelled");
         }
         auctionRepository.save(auction.withStatus(AuctionStatus.CANCELLED));
-        activityLogRepository.log("AUCTION_CANCELLED", "Subasta cancelada: " + auctionId, requesterId,
+        activityLogRepository.log("AUCTION_CANCELLED", "Auction cancelled: " + auctionId, requesterId,
                 Map.of("auctionId", auctionId.toString()));
     }
 }
