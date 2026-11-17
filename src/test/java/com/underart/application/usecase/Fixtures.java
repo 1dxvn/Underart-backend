@@ -20,8 +20,10 @@ final class Fixtures {
 
     static UUID artworkOf(ArtworkRepositoryPort artworks, UUID artistId) {
         UUID artworkId = UUID.randomUUID();
-        when(artworks.findById(artworkId)).thenReturn(Optional.of(new Artwork(artworkId, artistId, "Obra",
-                "desc", "Óleo", BigDecimal.ONE, "1x1", BigDecimal.TEN, List.of(), Instant.now())));
+        Artwork artwork = new Artwork(artworkId, artistId, "Artwork", "Description", "Oil", BigDecimal.ONE,
+                "1x1", BigDecimal.TEN, List.of(), Instant.now());
+        when(artworks.findById(artworkId)).thenReturn(Optional.of(artwork));
+        when(artworks.findByIdForUpdate(artworkId)).thenReturn(Optional.of(artwork));
         return artworkId;
     }
 
