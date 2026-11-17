@@ -7,7 +7,7 @@ public final class PasswordPolicy {
     public static final int MIN_LENGTH = 8;
     public static final int MAX_LENGTH = 100;
     public static final String DESCRIPTION =
-            "debe tener entre 8 y 100 caracteres, con al menos una letra y un número";
+            "must contain 8 to 100 characters, including a letter and a number";
 
     private PasswordPolicy() {
     }
@@ -21,7 +21,7 @@ public final class PasswordPolicy {
 
     public static void require(String password) {
         if (!isValid(password)) {
-            throw new BusinessRuleException("La contraseña " + DESCRIPTION);
+            throw new BusinessRuleException("Password " + DESCRIPTION);
         }
     }
 }

@@ -19,11 +19,11 @@ public record Review(
 
     public Review {
         if (rating < MIN_RATING || rating > MAX_RATING) {
-            throw new BusinessRuleException("La calificación debe estar entre 1 y 5");
+            throw new BusinessRuleException("Rating must be between 1 and 5");
         }
         comment = comment == null || comment.isBlank() ? null : comment.strip();
         if (comment != null && comment.length() > MAX_COMMENT_LENGTH) {
-            throw new BusinessRuleException("El comentario no puede superar los 1000 caracteres");
+            throw new BusinessRuleException("Review must not exceed 1000 characters");
         }
     }
 }

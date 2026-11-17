@@ -9,10 +9,10 @@ public record PriceRange(BigDecimal min, BigDecimal max) {
 
     public PriceRange {
         if (min != null && min.signum() < 0 || max != null && max.signum() < 0) {
-            throw new BusinessRuleException("El rango de precios no puede ser negativo");
+            throw new BusinessRuleException("Prices must not be negative");
         }
         if (min != null && max != null && min.compareTo(max) > 0) {
-            throw new BusinessRuleException("El precio mínimo no puede superar al máximo");
+            throw new BusinessRuleException("Minimum price must not exceed maximum price");
         }
     }
 }

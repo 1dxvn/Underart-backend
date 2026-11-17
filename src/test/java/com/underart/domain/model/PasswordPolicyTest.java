@@ -32,6 +32,6 @@ class PasswordPolicyTest {
     void requireExplainsTheRule() {
         assertThatThrownBy(() -> PasswordPolicy.require("abcdefgh"))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("al menos una letra y un número");
+                .hasMessageContaining("a letter and a number");
     }
 }

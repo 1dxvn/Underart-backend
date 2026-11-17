@@ -44,13 +44,13 @@ public final class MediaPolicy {
 
     public static MediaKind requireAllowed(String contentType, long sizeBytes, boolean directUpload) {
         MediaKind kind = kindOf(contentType).orElseThrow(() -> new BusinessRuleException(
-                "Tipo de archivo no permitido. Usa JPEG, PNG, WEBP, MP4, WEBM o MOV"));
+                "Unsupported file type. Use JPEG, PNG, WEBP, MP4, WEBM or MOV"));
         if (sizeBytes <= 0) {
-            throw new BusinessRuleException("El archivo está vacío");
+            throw new BusinessRuleException("The file is empty");
         }
         long max = maxBytes(kind, directUpload);
         if (sizeBytes > max) {
-            throw new BusinessRuleException("El archivo supera el máximo de " + (max / (1024 * 1024)) + " MB");
+            throw new BusinessRuleException("The file exceeds the maximum of " + (max / (1024 * 1024)) + " MB");
         }
         return kind;
     }

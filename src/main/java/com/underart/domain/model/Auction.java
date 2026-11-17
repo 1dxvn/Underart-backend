@@ -23,7 +23,7 @@ public record Auction(
     }
 
     public boolean hasEnded(Instant now) {
-        return now.isAfter(endDate);
+        return !now.isBefore(endDate);
     }
 
     public Auction withStatus(AuctionStatus newStatus) {

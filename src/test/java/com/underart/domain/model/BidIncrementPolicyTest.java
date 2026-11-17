@@ -8,7 +8,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class BidIncrementPolicyTest {
 
-    @ParameterizedTest(name = "base {0}, más alta {1} -> mínima {2}")
+    @ParameterizedTest(name = "base {0}, highest {1} -> minimum {2}")
     @CsvSource(nullValues = "null", value = {
             "100, null, 100.00",
             "99.999, null, 100.00",

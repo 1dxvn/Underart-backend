@@ -26,7 +26,7 @@ class ReviewTest {
     @Test
     void normalizesBlankCommentsAndLimitsLength() {
         assertThat(review(5, "   ").comment()).isNull();
-        assertThat(review(4, "  Excelente  ").comment()).isEqualTo("Excelente");
+        assertThat(review(4, "  Excellent  ").comment()).isEqualTo("Excellent");
         assertThatThrownBy(() -> review(3, "x".repeat(1001))).isInstanceOf(BusinessRuleException.class);
     }
 
