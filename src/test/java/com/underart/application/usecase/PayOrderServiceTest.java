@@ -34,28 +34,34 @@ class PayOrderServiceTest {
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
     private final OrderParties parties = mock(OrderParties.class);
-    private final PayOrderService service = new PayOrderService(orders, users, gateway, log, notifications, parties);
+    private final PayOrderService service = new PayOrderService(gateway, log, notifications, parties, new PaymentTransactions(orders, users));
     private final UUID buyerId = UUID.randomUUID();
     private Order order;
 
     @BeforeEach
     void setUp() {
         order = Order.pending(UUID.randomUUID(), buyerId, new BigDecimal("100.00"));
-        when(orders.findById(order.id())).thenReturn(Optional.of(order));
-        when(orders.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+        java.util.concurrent.atomic.AtomicReference<Order> stored = new java.util.concurrent.atomic.AtomicReference<>(order);
+        when(orders.findByIdForUpdate(order.id())).thenAnswer(i -> Optional.of(stored.get()));
+        when(orders.save(any(Order.class))).thenAnswer(i -> {
+            Order updated = i.getArgument(0);
+            stored.set(updated);
+            return updated;
+        });
+
     }
 
     private void buyerWithToken(String token) {
-        when(users.findById(buyerId)).thenReturn(new User(buyerId, "b", "b@x.com", "h", null, null, token, Instant.now()));
+        when(users.findById(buyerId)).thenReturn(new User(buyerId, "b", "b@x.com", "h", "City", "Street 1", token, Instant.now()));
     }
 
     @Test
     void approvedPaymentMarksOrderPaid() {
         buyerWithToken("tok_ok");
-        when(gateway.charge("tok_ok", order.totalPaid(), "order-" + order.id()))
+        when(gateway.charge(org.mockito.ArgumentMatchers.eq("tok_ok"), org.mockito.ArgumentMatchers.eq(order.totalPaid()), org.mockito.ArgumentMatchers.startsWith("order-" + order.id())))
                 .thenReturn(new PaymentResult(true, "tx1", "ok"));
         UUID artistId = UUID.randomUUID();
-        when(parties.artworkOf(order)).thenReturn(java.util.Optional.of(new com.underart.domain.model.Artwork(
+        when(parties.artworkOf(any())).thenReturn(java.util.Optional.of(new com.underart.domain.model.Artwork(
                 UUID.randomUUID(), artistId, "Marina", null, null, null, null, null, java.util.List.of(), Instant.now())));
 
         assertThat(service.pay(order.id(), buyerId).paymentStatus()).isEqualTo(PaymentStatus.PAID);
@@ -70,9 +76,9 @@ class PayOrderServiceTest {
     @Test
     void declinedPaymentMarksOrderFailedAndThrows() {
         buyerWithToken("tok_fail");
-        when(gateway.charge(any(), any(), any())).thenReturn(new PaymentResult(false, null, "rechazada"));
+        when(gateway.charge(any(), any(), any())).thenReturn(new PaymentResult(false, null, "declined"));
         assertThatThrownBy(() -> service.pay(order.id(), buyerId)).isInstanceOf(PaymentFailedException.class);
-        verify(orders).save(order.withPaymentStatus(PaymentStatus.FAILED));
+        verify(orders, org.mockito.Mockito.atLeastOnce()).save(org.mockito.ArgumentMatchers.argThat(o -> o.paymentStatus() == PaymentStatus.FAILED));
         verify(notifications).send(org.mockito.ArgumentMatchers.argThat(n ->
                 n.userId().equals(buyerId) && n.type() == com.underart.domain.model.NotificationType.PAYMENT_FAILED));
     }
@@ -88,4 +94,21 @@ class PayOrderServiceTest {
         assertThatThrownBy(() -> service.pay(order.id(), UUID.randomUUID()))
                 .isInstanceOf(ForbiddenOperationException.class);
     }
+    @Test
+    void uncertainPaymentReusesItsReferenceAndOriginalMethod() {
+        buyerWithToken("tok_original");
+        when(gateway.charge(any(), any(), any()))
+                .thenThrow(new PaymentFailedException("Connection interrupted"))
+                .thenReturn(new PaymentResult(true, "tx_recovered", "approved"));
+        assertThatThrownBy(() -> service.pay(order.id(), buyerId)).isInstanceOf(PaymentFailedException.class);
+        buyerWithToken("tok_changed");
+        assertThat(service.pay(order.id(), buyerId).payment().transactionId()).isEqualTo("tx_recovered");
+        var references = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(gateway, org.mockito.Mockito.times(2)).charge(org.mockito.ArgumentMatchers.eq("tok_original"),
+                org.mockito.ArgumentMatchers.eq(order.totalPaid()), references.capture());
+        assertThat(references.getAllValues().get(0)).isEqualTo(references.getAllValues().get(1));
+        assertThatThrownBy(() -> service.pay(order.id(), buyerId)).isInstanceOf(BusinessRuleException.class);
+        verify(gateway, org.mockito.Mockito.times(2)).charge(any(), any(), any());
+    }
+
 }

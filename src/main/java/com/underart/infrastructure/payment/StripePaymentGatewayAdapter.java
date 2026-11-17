@@ -7,10 +7,6 @@ import com.underart.domain.port.out.PaymentGatewayPort;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +34,7 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
 
     @Autowired
     public StripePaymentGatewayAdapter(@Value("${payment.stripe.secret-key:}") String secretKey,
-                                       @Value("${payment.stripe.currency:usd}") String currency) {
+                                       @Value("${payment.currency:usd}") String currency) {
         this(RestClient.builder().requestFactory(timeouts()).build(), secretKey, currency);
     }
 
@@ -51,7 +47,7 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
     @PostConstruct
     void requireSecretKey() {
         if (secretKey == null || !secretKey.startsWith("sk_")) {
-            throw new IllegalStateException("payment.provider=stripe requiere STRIPE_SECRET_KEY (sk_test_... o sk_live_...)");
+            throw new IllegalStateException("payment.provider=stripe requires STRIPE_SECRET_KEY (sk_test_... or sk_live_...)");
         }
     }
 
@@ -70,7 +66,7 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
     public PaymentResult charge(String paymentToken, BigDecimal amount, String reference) {
         String[] parts = paymentToken.split(TOKEN_SEPARATOR, 2);
         if (parts.length != 2) {
-            throw new PaymentFailedException("El método de pago guardado no es válido. Regístralo de nuevo");
+            throw new PaymentFailedException("Invalid stored payment method. Register it again");
         }
         MultiValueMap<String, String> intent = new LinkedMultiValueMap<>();
         intent.add("amount", String.valueOf(amount.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact()));
@@ -82,12 +78,15 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
         intent.add("off_session", "true");
         intent.add("description", reference);
         intent.add("metadata[reference]", reference);
-        JsonNode response = post("/payment_intents", intent, reference + ":" + fingerprint(paymentToken));
+        JsonNode response = post("/payment_intents", intent, reference);
         String status = response.path("status").asText();
         if ("succeeded".equals(status)) {
-            return new PaymentResult(true, response.path("id").asText(), "aprobado");
+            return new PaymentResult(true, require(response, "id"), "approved");
         }
-        return new PaymentResult(false, null, "estado " + status + " (puede requerir autenticación adicional)");
+        if ("requires_payment_method".equals(status) || "canceled".equals(status)) {
+            return new PaymentResult(false, response.path("id").asText(null), "Payment declined");
+        }
+        throw new PaymentFailedException("Payment is unresolved (" + status + "). Retry the same order payment");
     }
 
     private JsonNode post(String path, MultiValueMap<String, String> form, String idempotencyKey) {
@@ -104,9 +103,13 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
                     .exchange((request, response) -> {
                         JsonNode body = mapper.readTree(response.getBody());
                         if (response.getStatusCode().isError()) {
-                            String message = body.path("error").path("message").asText("error desconocido");
-                            log.warn("Stripe rechazó {} ({}): {}", path, response.getStatusCode().value(),
+                            String message = body.path("error").path("message").asText("unknown error");
+                            log.warn("Stripe rejected {} ({}): {}", path, response.getStatusCode().value(),
                                     body.path("error").path("code").asText());
+                            if (path.equals("/payment_intents") && response.getStatusCode().value() == 402
+                                    && body.path("error").path("code").asText().equals("card_declined")) {
+                                return mapper.createObjectNode().put("status", "requires_payment_method");
+                            }
                             throw new PaymentFailedException(message);
                         }
                         return body;
@@ -114,26 +117,17 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
         } catch (PaymentFailedException e) {
             throw e;
         } catch (RestClientException | IllegalStateException e) {
-            log.error("No se pudo contactar a Stripe en {}", path, e);
-            throw new PaymentFailedException("No se pudo contactar a la pasarela de pago");
+            log.error("Could not contact Stripe at {}", path, e);
+            throw new PaymentFailedException("Could not contact the payment gateway");
         }
     }
 
     private static String require(JsonNode body, String field) {
         String value = body.path(field).asText("");
         if (value.isBlank()) {
-            throw new PaymentFailedException("Respuesta inesperada de la pasarela de pago");
+            throw new PaymentFailedException("Unexpected payment gateway response");
         }
         return value;
-    }
-
-    private static String fingerprint(String value) {
-        try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash, 0, 6);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     private static SimpleClientHttpRequestFactory timeouts() {
