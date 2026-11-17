@@ -30,6 +30,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<User> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(UserMapper::toDomain);
+    }
+
+    @Override
     public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email).map(UserMapper::toDomain);
     }

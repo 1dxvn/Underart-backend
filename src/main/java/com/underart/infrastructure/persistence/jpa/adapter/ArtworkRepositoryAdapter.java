@@ -34,6 +34,11 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     }
 
     @Override
+    public Optional<Artwork> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(ArtworkMapper::toDomain);
+    }
+
+    @Override
     public List<Artwork> findByArtistId(UUID artistId) {
         return repository.findByArtistId(artistId).stream().map(ArtworkMapper::toDomain).toList();
     }

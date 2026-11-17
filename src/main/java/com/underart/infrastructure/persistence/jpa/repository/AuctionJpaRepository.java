@@ -22,7 +22,7 @@ public interface AuctionJpaRepository extends JpaRepository<AuctionEntity, UUID>
     @Query("select a from AuctionEntity a where a.id = :id")
     Optional<AuctionEntity> findByIdForUpdate(@Param("id") UUID id);
 
-    @Query("select a.id from AuctionEntity a where a.status = :status and a.endDate < :now")
+    @Query("select a.id from AuctionEntity a where a.status = :status and a.endDate <= :now")
     List<UUID> findIdsByStatusAndEndDateBefore(@Param("status") AuctionStatus status, @Param("now") Instant now);
 
     boolean existsByArtworkId(UUID artworkId);

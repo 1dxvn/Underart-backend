@@ -9,6 +9,8 @@ import com.underart.infrastructure.persistence.jpa.mapper.OrderMapper;
 import com.underart.infrastructure.persistence.jpa.repository.OrderJpaRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
@@ -33,6 +35,21 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     @Override
     public Optional<Order> findById(UUID id) {
         return repository.findById(id).map(OrderMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Order> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(OrderMapper::toDomain);
+    }
+
+    @Override
+    public boolean reservesArtwork(UUID artworkId) {
+        return repository.reservesArtwork(artworkId);
+    }
+
+    @Override
+    public List<UUID> findUnpaidExpiredIds(Instant now) {
+        return repository.findUnpaidExpiredIds(now);
     }
 
     @Override
