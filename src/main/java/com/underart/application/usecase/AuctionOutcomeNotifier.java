@@ -21,18 +21,18 @@ public class AuctionOutcomeNotifier {
                 "artworkId", artwork.id().toString());
         String price = order.subtotal().toPlainString();
         notifications.send(Notification.create(order.winnerId(), NotificationType.AUCTION_WON,
-                boughtNow ? "Compraste una obra" : "¡Ganaste la subasta!",
-                (boughtNow ? "Compraste «" : "Ganaste «") + artwork.title() + "» por " + price
-                        + ". Paga tu orden para que el artista la envíe.", data));
+                boughtNow ? "You bought an artwork" : "You won the auction!",
+                (boughtNow ? "You bought «" : "You won «") + artwork.title() + "» for " + price
+                        + ". Pay your order so the artist can ship it.", data));
         notifications.send(Notification.create(artwork.artistId(), NotificationType.AUCTION_SOLD,
-                "Vendiste una obra", "«" + artwork.title() + "» se vendió por " + price
-                        + ". Te avisaremos cuando el comprador pague.", data));
+                "Your artwork sold", "«" + artwork.title() + "» sold for " + price
+                        + ". We will notify you when the buyer pays.", data));
     }
 
     public void endedWithoutBids(Artwork artwork, Auction auction) {
         notifications.send(Notification.create(artwork.artistId(), NotificationType.AUCTION_ENDED_NO_BIDS,
-                "Tu subasta terminó sin pujas",
-                "«" + artwork.title() + "» no recibió pujas. Puedes crear una nueva subasta.",
+                "Your auction ended without bids",
+                "«" + artwork.title() + "» received no bids. You can create another auction.",
                 Map.of("auctionId", auction.id().toString(), "artworkId", artwork.id().toString())));
     }
 }

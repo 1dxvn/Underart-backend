@@ -20,10 +20,10 @@ public class AuctionClosingScheduler {
         for (UUID auctionId : closeExpiredAuctionsUseCase.findExpired()) {
             try {
                 closeExpiredAuctionsUseCase.close(auctionId).ifPresentOrElse(
-                        order -> log.info("Subasta {} cerrada con orden {}", auctionId, order.id()),
-                        () -> log.info("Subasta {} cerrada sin pujas", auctionId));
+                        order -> log.info("Auction {} closed with order {}", auctionId, order.id()),
+                        () -> log.info("Auction {} closed without bids", auctionId));
             } catch (RuntimeException e) {
-                log.error("No se pudo cerrar la subasta {}", auctionId, e);
+                log.error("Could not close auction {}", auctionId, e);
             }
         }
     }

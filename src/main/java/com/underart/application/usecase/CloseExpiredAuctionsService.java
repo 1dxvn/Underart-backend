@@ -31,6 +31,7 @@ public class CloseExpiredAuctionsService implements CloseExpiredAuctionsUseCase 
     private final List<AuctionClosedListenerPort> closedListeners;
     private final ArtworkRepositoryPort artworkRepository;
     private final AuctionOutcomeNotifier outcomeNotifier;
+    private final OrderFactory orderFactory;
 
     @Override
     public List<UUID> findExpired() {
@@ -48,11 +49,12 @@ public class CloseExpiredAuctionsService implements CloseExpiredAuctionsUseCase 
         Optional<Bid> winner = bidRepository.findHighestBid(auctionId);
         Optional<Order> order = winner
                 .filter(bid -> !orderRepository.existsByAuctionId(auctionId))
-                .map(bid -> orderRepository.save(Order.pending(auctionId, bid.buyerId(), bid.amount())));
+                .map(bid -> orderRepository.save(orderFactory.create(auctionId, bid.buyerId(), bid.amount(),
+                        ArtworkOwnership.requireExisting(artworkRepository, auction.artworkId()))));
         Auction closed = auctionRepository.save(auction.withStatus(AuctionStatus.CLOSED));
         closedListeners.forEach(listener -> listener.onAuctionClosed(closed));
         order.ifPresent(o -> activityLogRepository.log("AUCTION_WON",
-                "Ganaste la subasta " + auctionId, o.winnerId(),
+                "You won auction " + auctionId, o.winnerId(),
                 Map.of("auctionId", auctionId.toString(), "total", o.totalPaid())));
         artworkRepository.findById(auction.artworkId()).ifPresent(artwork -> order.ifPresentOrElse(
                 o -> outcomeNotifier.sold(artwork, closed, o, false),

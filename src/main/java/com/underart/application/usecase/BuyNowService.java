@@ -30,31 +30,32 @@ public class BuyNowService implements BuyNowUseCase {
     private final ActivityLogRepositoryPort activityLogRepository;
     private final List<AuctionClosedListenerPort> closedListeners;
     private final AuctionOutcomeNotifier outcomeNotifier;
+    private final OrderFactory orderFactory;
 
     @Override
     @Transactional
     public Order buy(UUID auctionId, UUID buyerId) {
         Auction auction = auctionRepository.findByIdForUpdate(auctionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subasta no encontrada: " + auctionId));
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found: " + auctionId));
         Instant now = Instant.now();
         if (!auction.isActive()) {
-            throw new BusinessRuleException("La subasta no está activa");
+            throw new BusinessRuleException("The auction is not active");
         }
         if (!auction.hasStarted(now) || auction.hasEnded(now)) {
-            throw new BusinessRuleException("La subasta no está en curso");
+            throw new BusinessRuleException("The auction is not in progress");
         }
         if (auction.immediatePurchasePrice() == null) {
-            throw new BusinessRuleException("Esta subasta no tiene compra inmediata");
+            throw new BusinessRuleException("This auction has no buy-now option");
         }
         Artwork artwork = ArtworkOwnership.requireExisting(artworkRepository, auction.artworkId());
         if (artwork.artistId().equals(buyerId)) {
-            throw new BusinessRuleException("No puedes comprar tu propia obra");
+            throw new BusinessRuleException("You cannot buy your own artwork");
         }
-        Order saved = orderRepository.save(Order.pending(auctionId, buyerId, auction.immediatePurchasePrice()));
+        Order saved = orderRepository.save(orderFactory.create(auctionId, buyerId, auction.immediatePurchasePrice(), artwork));
         Auction closed = auctionRepository.save(auction.withStatus(AuctionStatus.CLOSED));
         closedListeners.forEach(listener -> listener.onAuctionClosed(closed));
         outcomeNotifier.sold(artwork, closed, saved, true);
-        activityLogRepository.log("BUY_NOW", "Compra inmediata de subasta " + auctionId, buyerId,
+        activityLogRepository.log("BUY_NOW", "Buy-now purchase for auction " + auctionId, buyerId,
                 Map.of("total", saved.totalPaid(), "orderId", saved.id().toString()));
         return saved;
     }

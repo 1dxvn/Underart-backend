@@ -36,7 +36,7 @@ class CloseExpiredAuctionsServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final AuctionOutcomeNotifier notifier = mock(AuctionOutcomeNotifier.class);
     private final CloseExpiredAuctionsService service =
-            new CloseExpiredAuctionsService(auctions, bids, orders, log, List.of(listener), artworks, notifier);
+            new CloseExpiredAuctionsService(auctions, bids, orders, log, List.of(listener), artworks, notifier, new OrderFactory("usd"));
 
     @BeforeEach
     void setUp() {
