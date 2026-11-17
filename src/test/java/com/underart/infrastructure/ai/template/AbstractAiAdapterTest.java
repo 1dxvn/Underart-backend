@@ -8,8 +8,8 @@ class AbstractAiAdapterTest {
 
     @Test
     void extractsJsonFromMarkdownFences() {
-        String raw = "Claro, aquí está:\n```json\n{\"suggestedPrice\": 350, \"tags\": [\"óleo\"]}\n```";
-        assertThat(AbstractAiAdapter.extractJson(raw)).isEqualTo("{\"suggestedPrice\": 350, \"tags\": [\"óleo\"]}");
+        String raw = "Sure, here it is:\n```json\n{\"suggestedPrice\": 350, \"tags\": [\"oil\"]}\n```";
+        assertThat(AbstractAiAdapter.extractJson(raw)).isEqualTo("{\"suggestedPrice\": 350, \"tags\": [\"oil\"]}");
     }
 
     @Test

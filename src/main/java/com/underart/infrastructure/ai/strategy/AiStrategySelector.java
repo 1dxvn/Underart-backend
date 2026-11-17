@@ -4,10 +4,10 @@ import com.underart.domain.exception.AiProviderException;
 import com.underart.domain.model.AiResult;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.AiProviderPort;
-import com.underart.infrastructure.ai.factory.AiProviderFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -16,11 +16,14 @@ import org.springframework.web.client.RestClientException;
 @Primary
 public class AiStrategySelector implements AiProviderPort {
 
-    private final AiProviderFactory factory;
+    private final AiProviderPort primary;
+    private final AiProviderPort fallback;
     private final ActivityLogRepositoryPort activityLog;
 
-    public AiStrategySelector(AiProviderFactory factory, ActivityLogRepositoryPort activityLog) {
-        this.factory = factory;
+    public AiStrategySelector(@Qualifier("groqAiAdapter") AiProviderPort primary,
+                              @Qualifier("openAiAdapter") AiProviderPort fallback, ActivityLogRepositoryPort activityLog) {
+        this.primary = primary;
+        this.fallback = fallback;
         this.activityLog = activityLog;
     }
 
@@ -36,21 +39,20 @@ public class AiStrategySelector implements AiProviderPort {
 
     @Override
     public String getProviderName() {
-        return factory.getPrimary().getProviderName();
+        return primary.getProviderName();
     }
 
     private <T> T execute(Function<AiProviderPort, T> call) {
-        AiProviderPort primary = factory.getPrimary();
         try {
             return call.apply(primary);
         } catch (RestClientException | AiProviderException e) {
-            activityLog.log("AI_FALLBACK", primary.getProviderName() + " falló: " + e.getMessage(),
+            activityLog.log("AI_FALLBACK", primary.getProviderName() + " failed: " + e.getMessage(),
                     null, Map.of("provider", primary.getProviderName()));
         }
         try {
-            return call.apply(factory.getFallback());
+            return call.apply(fallback);
         } catch (RestClientException | AiProviderException e) {
-            throw new AiProviderException("Todos los proveedores de IA fallaron: " + e.getMessage());
+            throw new AiProviderException("All AI providers failed: " + e.getMessage());
         }
     }
 }

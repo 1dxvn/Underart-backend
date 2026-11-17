@@ -34,11 +34,11 @@ class ArtworkAiServiceTest {
         when(limiter.blockedFor(any(), anyInt(), any())).thenReturn(Optional.empty());
         when(ai.valuateArtwork(any(), any(), any()))
                 .thenReturn(new AiResult("groq", new BigDecimal("120.00"), List.of(), "{}"));
-        when(ai.generateTags(any(), any())).thenReturn(List.of("óleo"));
+        when(ai.generateTags(any(), any())).thenReturn(List.of("oil"));
 
-        AiResult result = service.processArtwork(userId, "Retrato", null, "Óleo", null);
+        AiResult result = service.processArtwork(userId, "Portrait", null, "Oil", null);
 
-        assertThat(result.tags()).containsExactly("óleo");
+        assertThat(result.tags()).containsExactly("oil");
         verify(limiter).hit("ai:" + userId, AiUsagePolicy.WINDOW);
     }
 
@@ -47,9 +47,9 @@ class ArtworkAiServiceTest {
         when(limiter.blockedFor("ai:" + userId, AiUsagePolicy.MAX_USES_PER_WINDOW, AiUsagePolicy.WINDOW))
                 .thenReturn(Optional.of(Duration.ofMinutes(20)));
 
-        assertThatThrownBy(() -> service.processArtwork(userId, "Retrato", null, null, null))
+        assertThatThrownBy(() -> service.processArtwork(userId, "Portrait", null, null, null))
                 .isInstanceOf(TooManyRequestsException.class)
-                .hasMessageContaining("10 usos de IA por hora");
+                .hasMessageContaining("10 AI requests per hour");
         verifyNoInteractions(ai);
     }
 }

@@ -1,8 +1,8 @@
 package com.underart.application.usecase;
 
 import com.underart.domain.model.AiResult;
-import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiGenerationRepositoryPort.AiGenerationRecord;
+import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.domain.port.out.AiProviderPort;
 import com.underart.domain.port.out.RateLimiterPort;
 import java.util.List;

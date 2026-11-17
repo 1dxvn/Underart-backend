@@ -36,7 +36,7 @@ public class OpenAiAdapter extends AbstractAiAdapter {
         try {
             return mapper.readTree(raw).at("/choices/0/message/content").asText();
         } catch (Exception e) {
-            throw new AiProviderException("Respuesta de OpenAI inválida: " + e.getMessage());
+            throw new AiProviderException("Invalid OpenAI response: " + e.getMessage());
         }
     }
 
