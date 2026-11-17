@@ -23,18 +23,18 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - name: Compilar, probar y medir cobertura
+      - name: Build, test and check coverage
         run: ./mvnw -B clean verify
-      - name: Publicar informe de cobertura
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cobertura-jacoco
+          name: jacoco-coverage
           path: target/site/jacoco/
           if-no-files-found: ignore
-      - name: Publicar informes de pruebas
+      - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: informes-surefire
+          name: surefire-reports
           path: target/surefire-reports/
