@@ -6,7 +6,8 @@ target/
 hs_err_pid*
 
 .env
-.env.local
+.env.*
+!.env.example
 
 .idea/
 *.iml
