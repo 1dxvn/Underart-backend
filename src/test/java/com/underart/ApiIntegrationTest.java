@@ -70,8 +70,8 @@ class ApiIntegrationTest {
     void stubExternalServices() {
         when(groq.getProviderName()).thenReturn("groq");
         when(groq.valuateArtwork(any(), any(), any()))
-                .thenReturn(new AiResult("groq", new BigDecimal("300.00"), List.of("paisaje"), "{}"));
-        when(groq.generateTags(any(), any())).thenReturn(List.of("paisaje", "acuarela"));
+                .thenReturn(new AiResult("groq", new BigDecimal("300.00"), List.of("landscape"), "{}"));
+        when(groq.generateTags(any(), any())).thenReturn(List.of("landscape", "watercolor"));
         when(storage.publicUrl(anyString())).thenAnswer(i -> "https://cdn.test/" + i.getArgument(0));
         when(storage.presignUpload(anyString(), anyString(), anyLong())).thenReturn(new PresignedUpload(
                 "https://r2.test/upload", Instant.now().plusSeconds(900), Map.of("Content-Type", "video/mp4")));
@@ -92,16 +92,16 @@ class ApiIntegrationTest {
         assertThat(JsonPath.<Integer>read(publicProfile, "$.reviewsCount")).isZero();
         assertThat(JsonPath.<Object>read(publicProfile, "$.averageRating")).isNull();
 
-        String artworkId = createArtwork(artistToken, "Amanecer en el lago");
+        String artworkId = createArtwork(artistToken, "Dawn by the lake");
         assertThat(this.<Double>read(call(get("/api/v1/artworks/" + artworkId), buyerToken, null, 200),
                 "$.artwork.suggestedPrice")).isEqualTo(300.0);
-        assertThat(total(call(get("/api/v1/artworks?q=amanecer&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
-        assertThat(total(call(get("/api/v1/artworks?tag=PAISAJE&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
-        assertThat(total(call(get("/api/v1/artworks?technique=bronce&artistId=" + artistId), buyerToken, null, 200))).isZero();
-        String update = "{\"title\":\"Amanecer\",\"technique\":\"Acuarela\"}";
+        assertThat(total(call(get("/api/v1/artworks?q=dawn&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
+        assertThat(total(call(get("/api/v1/artworks?tag=LANDSCAPE&artistId=" + artistId), buyerToken, null, 200))).isEqualTo(1);
+        assertThat(total(call(get("/api/v1/artworks?technique=bronze&artistId=" + artistId), buyerToken, null, 200))).isZero();
+        String update = "{\"title\":\"Dawn\",\"technique\":\"Watercolor\"}";
         call(put("/api/v1/artworks/" + artworkId), buyerToken, update, 403);
         assertThat(this.<String>read(call(put("/api/v1/artworks/" + artworkId), artistToken, update, 200), "$.title"))
-                .isEqualTo("Amanecer");
+                .isEqualTo("Dawn");
 
         mediaFlow(artworkId, artistToken, buyerToken);
         publicCatalogFlow(artworkId, artistId);
@@ -120,19 +120,139 @@ class ApiIntegrationTest {
         lockoutFlow("locked-" + unique + "@test.com");
 
         call(delete("/api/v1/artworks/" + artworkId), artistToken, null, 400);
-        String disposable = createArtwork(artistToken, "Boceto");
+        String disposable = createArtwork(artistToken, "Sketch");
         call(delete("/api/v1/artworks/" + disposable), artistToken, null, 204);
         call(get("/api/v1/artworks/" + disposable), artistToken, null, 404);
 
         assertThat(this.<String>read(call(post("/api/v1/ai/valuations"), artistToken,
-                "{\"title\":\"Retrato\",\"technique\":\"Óleo\"}", 200), "$.provider")).isEqualTo("groq");
+                "{\"title\":\"Portrait\",\"technique\":\"Oil\"}", 200), "$.provider")).isEqualTo("groq");
         assertThat(this.<String>read(call(get("/actuator/health"), null, null, 200), "$.status")).isEqualTo("UP");
         assertThat(this.<String>read(call(get("/actuator/info"), null, null, 200), "$.app.name"))
                 .isEqualTo("Underart Backend");
         String openApi = body(call(get("/v3/api-docs"), null, null, 200));
         assertThat(JsonPath.<java.util.List<String>>read(openApi, "$.tags[*].name"))
-                .contains("Autenticación", "Obras", "Subastas", "Pujas", "Órdenes", "Notificaciones");
+                .contains("Authentication", "Artworks", "Auctions", "Bids", "Orders", "Notifications");
         assertThat(JsonPath.<String>read(openApi, "$.components.securitySchemes.bearerAuth.scheme")).isEqualTo("bearer");
+    }
+
+    @Autowired
+    private com.underart.application.usecase.PaymentTransactions payments;
+
+    @Test
+    void concurrentAuctionCreationAllowsOnlyOneActiveAuction() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtwork(artist, "Unique artwork");
+        String payload = auctionPayload(artwork);
+        List<Integer> statuses = together(() -> requestStatus(post("/api/v1/auctions"), artist, payload),
+                () -> requestStatus(post("/api/v1/auctions"), artist, payload));
+        assertThat(statuses).containsExactlyInAnyOrder(201, 400);
+        assertThat(jdbc.queryForObject("select count(*) from auctions where artwork_id = ? and status = 'ACTIVE'",
+                Long.class, UUID.fromString(artwork))).isEqualTo(1);
+        call(put("/api/v1/artworks/" + artwork), artist, "{\"title\":\"Changed\"}", 400);
+        upload("/api/v1/artworks/" + artwork + "/media", artist, "image/png", 400);
+    }
+
+    @Test
+    void concurrentPaymentsAndShippingPreserveOrderStateAndSnapshots() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtwork(artist, "Original artwork");
+        String payload = auctionPayload(artwork);
+        String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
+        String order = read(call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201), "$.id");
+        call(post("/api/v1/auctions"), artist, payload, 400);
+        call(put("/api/v1/users/me/payment-method"), buyer, "{\"paymentToken\":\"tok_visa\"}", 200);
+        List<Integer> paid = together(() -> requestStatus(post("/api/v1/orders/" + order + "/pay"), buyer, null),
+                () -> requestStatus(post("/api/v1/orders/" + order + "/pay"), buyer, null));
+        assertThat(paid).contains(200).allMatch(status -> status == 200 || status == 400);
+        String details = body(call(get("/api/v1/orders/" + order), artist, null, 200));
+        assertThat(JsonPath.<String>read(details, "$.snapshot.title")).isEqualTo("Original artwork");
+        assertThat(JsonPath.<String>read(details, "$.snapshot.shippingAddress")).isEqualTo("1 Main Street");
+        assertThat(JsonPath.<String>read(details, "$.snapshot.currency")).isEqualTo("usd");
+        assertThat(JsonPath.<String>read(details, "$.transactionId")).startsWith("sim_");
+        assertThat(details).doesNotContain("tok_visa", "paymentReference", "paymentMethod");
+        call(put("/api/v1/users/me"), buyer, "{\"username\":\"Buyer\",\"shippingAddress\":\"New address\"}", 200);
+        assertThat(this.<String>read(call(get("/api/v1/orders/" + order), buyer, null, 200),
+                "$.snapshot.shippingAddress")).isEqualTo("1 Main Street");
+        String shipping = "{\"carrier\":\"Carrier\",\"trackingNumber\":\"TRACK-1\"}";
+        assertThat(together(() -> requestStatus(post("/api/v1/orders/" + order + "/ship"), artist, shipping),
+                () -> requestStatus(post("/api/v1/orders/" + order + "/ship"), artist, shipping)))
+                .containsExactlyInAnyOrder(200, 400);
+        assertThat(together(() -> requestStatus(post("/api/v1/orders/" + order + "/confirm-delivery"), buyer, null),
+                () -> requestStatus(post("/api/v1/orders/" + order + "/confirm-delivery"), buyer, null)))
+                .containsExactlyInAnyOrder(200, 400);
+        call(post("/api/v1/auctions"), artist, payload, 400);
+    }
+
+    @Test
+    void unpaidOrdersExpireAndReleaseArtwork() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtwork(artist, "Reserved artwork");
+        String payload = auctionPayload(artwork);
+        String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
+        UUID order = UUID.fromString(read(call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201), "$.id"));
+        jdbc.update("update orders set payment_due_at = ? where id = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(1)), order);
+        payments.expire(order);
+        assertThat(this.<String>read(call(get("/api/v1/orders/" + order), buyer, null, 200), "$.paymentStatus"))
+                .isEqualTo("EXPIRED");
+        call(post("/api/v1/orders/" + order + "/pay"), buyer, null, 400);
+        call(post("/api/v1/auctions"), artist, payload, 201);
+    }
+
+    @Test
+    void biddingAndBuyingAtTheSameTimeProduceOneOrder() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String bidder = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtwork(artist, "Concurrent artwork");
+        String auction = read(call(post("/api/v1/auctions"), artist, auctionPayload(artwork), 201), "$.id");
+        List<Integer> statuses = together(
+                () -> requestStatus(post("/api/v1/auctions/" + auction + "/bids"), bidder, "{\"amount\":150}"),
+                () -> requestStatus(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null));
+        assertThat(statuses.get(1)).isEqualTo(201);
+        assertThat(statuses.get(0)).isIn(201, 400);
+        assertThat(jdbc.queryForObject("select count(*) from orders where auction_id = ?", Long.class,
+                UUID.fromString(auction))).isEqualTo(1);
+        assertThat(closer.close(UUID.fromString(auction))).isEmpty();
+    }
+
+    @Test
+    void artworkCreationSurvivesUnavailableAi() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        when(groq.valuateArtwork(any(), any(), any()))
+                .thenThrow(new com.underart.domain.exception.AiProviderException("Unavailable"));
+        String artwork = createArtwork(artist, "Manual artwork");
+        assertThat(this.<Object>read(call(get("/api/v1/artworks/" + artwork), null, null, 200),
+                "$.artwork.suggestedPrice")).isNull();
+    }
+
+    private String auctionPayload(String artwork) {
+        return "{\"artworkId\":\"" + artwork + "\",\"type\":\"IMMEDIATE\",\"basePrice\":100,"
+                + "\"immediatePurchasePrice\":500,\"endDate\":\"" + Instant.now().plusSeconds(3600) + "\"}";
+    }
+
+    private int requestStatus(MockHttpServletRequestBuilder request, String token, String payload) throws Exception {
+        request.header("Authorization", "Bearer " + token);
+        if (payload != null) {
+            request.contentType(MediaType.APPLICATION_JSON).content(payload);
+        }
+        return mvc.perform(request).andReturn().getResponse().getStatus();
+    }
+
+    private List<Integer> together(java.util.concurrent.Callable<Integer> first,
+                                  java.util.concurrent.Callable<Integer> second) throws Exception {
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try {
+            var a = executor.submit(() -> { start.await(); return first.call(); });
+            var b = executor.submit(() -> { start.await(); return second.call(); });
+            start.countDown();
+            return List.of(a.get(30, java.util.concurrent.TimeUnit.SECONDS), b.get(30, java.util.concurrent.TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private void mediaFlow(String artworkId, String artistToken, String buyerToken) throws Exception {
@@ -205,7 +325,7 @@ class ApiIntegrationTest {
         call(get(bids), null, null, 401);
         assertThat(JsonPath.<Double>read(detail, "$.auction.currentPrice")).isEqualTo(200.0);
         assertThat(JsonPath.<Integer>read(detail, "$.auction.bidCount")).isEqualTo(2);
-        assertThat(JsonPath.<String>read(detail, "$.auction.artworkTitle")).isEqualTo("Amanecer");
+        assertThat(JsonPath.<String>read(detail, "$.auction.artworkTitle")).isEqualTo("Dawn");
         assertThat(JsonPath.<String>read(detail, "$.auction.coverUrl")).startsWith("https://cdn.test/artworks/");
         String listed = body(call(get("/api/v1/auctions?artworkId=" + artworkId), null, null, 200));
         assertThat(JsonPath.<Double>read(listed, "$.items[0].currentPrice")).isEqualTo(200.0);
@@ -220,7 +340,7 @@ class ApiIntegrationTest {
     }
 
     private String closingFlow(String artistToken, String buyerToken, String thirdToken) throws Exception {
-        String artworkId = createArtwork(artistToken, "Nocturno");
+        String artworkId = createArtwork(artistToken, "Nocturne");
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"SIMPLE\",\"basePrice\":100,"
                 + "\"endDate\":\"" + Instant.now().plusSeconds(60) + "\"}";
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
@@ -295,8 +415,8 @@ class ApiIntegrationTest {
         String review = "/api/v1/orders/" + orderId + "/review";
         call(post(review), artistToken, "{\"rating\":5}", 403);
         call(post(review), buyerToken, "{\"rating\":6}", 400);
-        String created = body(call(post(review), buyerToken, "{\"rating\":5,\"comment\":\" Excelente \"}", 201));
-        assertThat(JsonPath.<String>read(created, "$.comment")).isEqualTo("Excelente");
+        String created = body(call(post(review), buyerToken, "{\"rating\":5,\"comment\":\" Excellent \"}", 201));
+        assertThat(JsonPath.<String>read(created, "$.comment")).isEqualTo("Excellent");
         assertThat(JsonPath.<String>read(created, "$.sellerId")).isEqualTo(artistId);
         call(post(review), buyerToken, "{\"rating\":4}", 400);
 
@@ -329,18 +449,19 @@ class ApiIntegrationTest {
     private void accountFlow(String buyerToken, String email) throws Exception {
         assertThat(total(call(get("/api/v1/users/me/activity"), buyerToken, null, 200))).isPositive();
         assertThat(this.<String>read(call(put("/api/v1/users/me"), buyerToken,
-                "{\"username\":\"comprador\",\"city\":\"Medellín\"}", 200), "$.username")).isEqualTo("comprador");
+                "{\"username\":\"buyer\",\"city\":\"Medellín\"}", 200), "$.username")).isEqualTo("buyer");
         call(put("/api/v1/users/me/password"), buyerToken,
-                "{\"currentPassword\":\"incorrecta\",\"newPassword\":\"nueva-clave-123\"}", 400);
+                "{\"currentPassword\":\"incorrect\",\"newPassword\":\"new-password-123\"}", 400);
         String refreshBeforeChange = read(call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200), "$.refreshToken");
         call(put("/api/v1/users/me/password"), buyerToken,
-                "{\"currentPassword\":\"password123\",\"newPassword\":\"solo-letras\"}", 400);
+                "{\"currentPassword\":\"password123\",\"newPassword\":\"letters-only\"}", 400);
         call(put("/api/v1/users/me/password"), buyerToken,
-                "{\"currentPassword\":\"password123\",\"newPassword\":\"nueva-clave-123\"}", 204);
+                "{\"currentPassword\":\"password123\",\"newPassword\":\"new-password-123\"}", 204);
+        call(get("/api/v1/users/me"), buyerToken, null, 401);
         call(post("/api/v1/auth/refresh"), null, "{\"refreshToken\":\"" + refreshBeforeChange + "\"}", 401);
         call(post("/api/v1/auth/login"), null,
-                "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"nueva-clave-123\"}", 200);
+                "{\"email\":\"" + email.toUpperCase() + "\",\"password\":\"new-password-123\"}", 200);
     }
 
     private void sessionFlow(String email) throws Exception {
@@ -399,9 +520,9 @@ class ApiIntegrationTest {
     private void searchFlow(String artistId) throws Exception {
         String byArtist = "/api/v1/artworks?artistId=" + artistId;
         assertThat(this.<String>read(call(get(byArtist + "&sort=title,asc"), null, null, 200), "$.items[0].title"))
-                .isEqualTo("Amanecer");
+                .isEqualTo("Dawn");
         assertThat(this.<String>read(call(get(byArtist + "&sort=title,desc"), null, null, 200), "$.items[0].title"))
-                .isEqualTo("Nocturno");
+                .isEqualTo("Nocturne");
         assertThat(total(call(get(byArtist + "&minPrice=300&maxPrice=300"), null, null, 200))).isEqualTo(3);
         assertThat(total(call(get(byArtist + "&minPrice=301"), null, null, 200))).isZero();
         call(get(byArtist + "&minPrice=500&maxPrice=100"), null, null, 400);
@@ -425,7 +546,7 @@ class ApiIntegrationTest {
 
     private void lockoutFlow(String email) throws Exception {
         registerAndLogin(email);
-        String wrong = "{\"email\":\"" + email + "\",\"password\":\"incorrecta1\"}";
+        String wrong = "{\"email\":\"" + email + "\",\"password\":\"incorrect1\"}";
         for (int i = 0; i < 5; i++) {
             call(post("/api/v1/auth/login"), null, wrong, 400);
         }
@@ -436,13 +557,13 @@ class ApiIntegrationTest {
 
     private String createArtwork(String token, String title) throws Exception {
         return read(call(post("/api/v1/artworks"), token,
-                "{\"title\":\"" + title + "\",\"description\":\"Obra de prueba\",\"technique\":\"Acuarela\","
+                "{\"title\":\"" + title + "\",\"description\":\"Test artwork\",\"technique\":\"Watercolor\","
                         + "\"weightKg\":1.5,\"dimensions\":\"30x40\"}", 201), "$.id");
     }
 
     private String registerAndLogin(String email) throws Exception {
         call(post("/api/v1/users/register"), null, "{\"username\":\"u\",\"email\":\"" + email
-                + "\",\"password\":\"password123\",\"city\":\"Bogotá\",\"shippingAddress\":\"Calle 1\"}", 201);
+                + "\",\"password\":\"password123\",\"city\":\"Bogotá\",\"shippingAddress\":\"1 Main Street\"}", 201);
         String session = body(call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200));
         assertThat(JsonPath.<String>read(session, "$.tokenType")).isEqualTo("Bearer");
@@ -452,7 +573,7 @@ class ApiIntegrationTest {
     }
 
     private MvcResult upload(String path, String token, String contentType, int expected) throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "archivo", contentType, new byte[]{1, 2, 3});
+        MockMultipartFile file = new MockMultipartFile("file", "file", contentType, new byte[]{1, 2, 3});
         return call(multipart(path).file(file), token, null, expected);
     }
 

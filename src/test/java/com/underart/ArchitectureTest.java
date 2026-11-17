@@ -16,7 +16,7 @@ class ArchitectureTest {
             .that().resideInAPackage("com.underart.domain..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "org.springframework..", "jakarta..", "lombok..", "com.fasterxml..")
-            .because("el dominio es Java puro: no conoce frameworks");
+            .because("the domain is pure Java and does not depend on frameworks");
 
     @ArchTest
     static final ArchRule domainDoesNotDependOnOuterLayers = noClasses()
@@ -28,7 +28,7 @@ class ArchitectureTest {
     static final ArchRule applicationDoesNotDependOnInfrastructure = noClasses()
             .that().resideInAPackage("com.underart.application..")
             .should().dependOnClassesThat().resideInAPackage("com.underart.infrastructure..")
-            .because("los casos de uso solo hablan con puertos del dominio");
+            .because("use cases depend on domain ports");
 
     @ArchTest
     static final ArchRule portsAreInterfaces = classes()
