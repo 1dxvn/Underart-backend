@@ -2,6 +2,7 @@ package com.underart.application.dto;
 
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PaymentStatus;
+import com.underart.domain.model.PurchaseSnapshot;
 import com.underart.domain.model.ShippingStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,11 +22,14 @@ public record OrderResponse(
         String trackingNumber,
         Instant shippedAt,
         Instant deliveredAt,
-        Instant createdAt) {
+        Instant createdAt,
+        Instant paymentDueAt,
+        PurchaseSnapshot snapshot,
+        String transactionId) {
 
     public static OrderResponse from(Order o) {
         return new OrderResponse(o.id(), o.auctionId(), o.winnerId(), o.subtotal(), o.shippingCost(),
                 o.platformFee(), o.totalPaid(), o.paymentStatus(), o.shippingStatus(), o.carrier(),
-                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt());
+                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt(), o.paymentDueAt(), o.snapshot(), o.payment().transactionId());
     }
 }
