@@ -31,7 +31,6 @@ public class FavoriteRepositoryAdapter implements FavoriteRepositoryPort {
         try {
             repository.save(new FavoriteEntity(id, Instant.now()));
         } catch (DataIntegrityViolationException alreadyAddedConcurrently) {
-            // otra petición simultánea ya lo marcó como favorito: la operación es idempotente
         }
     }
 

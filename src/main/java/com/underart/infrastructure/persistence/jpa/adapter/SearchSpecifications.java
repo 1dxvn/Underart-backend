@@ -2,9 +2,9 @@ package com.underart.infrastructure.persistence.jpa.adapter;
 
 import com.underart.domain.model.ArtworkSearchCriteria;
 import com.underart.domain.model.AuctionSearchCriteria;
+import com.underart.domain.model.PriceRange;
 import com.underart.infrastructure.persistence.jpa.entity.ArtworkEntity;
 import com.underart.infrastructure.persistence.jpa.entity.AuctionEntity;
-import com.underart.domain.model.PriceRange;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Path;
