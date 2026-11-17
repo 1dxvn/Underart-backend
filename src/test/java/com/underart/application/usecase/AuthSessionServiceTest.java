@@ -133,7 +133,7 @@ class AuthSessionServiceTest {
     @Test
     void failedLoginCountsAndSuccessResetsTheCounter() {
         when(limiter.blockedFor(any(), org.mockito.ArgumentMatchers.anyInt(), any())).thenReturn(Optional.empty());
-        when(authenticate.authenticate(" Ana@Test.com ", "mala")).thenThrow(new BusinessRuleException("Credenciales inválidas"));
+        when(authenticate.authenticate(" Ana@Test.com ", "mala")).thenThrow(new BusinessRuleException("Invalid credentials"));
         when(authenticate.authenticate("ana@test.com", "password123")).thenReturn(user);
 
         assertThatThrownBy(() -> service.login(" Ana@Test.com ", "mala")).isInstanceOf(BusinessRuleException.class);
@@ -150,7 +150,7 @@ class AuthSessionServiceTest {
 
         assertThatThrownBy(() -> service.login("ana@test.com", "password123"))
                 .isInstanceOf(TooManyRequestsException.class)
-                .hasMessageContaining("6 minutos")
+                .hasMessageContaining("6 minutes")
                 .extracting(e -> ((TooManyRequestsException) e).retryAfterSeconds()).isEqualTo(301L);
         verify(authenticate, never()).authenticate(any(), any());
     }

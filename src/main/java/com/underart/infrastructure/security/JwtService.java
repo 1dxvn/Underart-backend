@@ -7,8 +7,11 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.UUID;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,7 +32,7 @@ public class JwtService implements AccessTokenPort {
     public JwtService(@Value("${jwt.secret}") String secret,
                       @Value("${jwt.expiration-ms:900000}") long expirationMs) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
-            throw new IllegalStateException("JWT_SECRET debe tener al menos " + MIN_SECRET_BYTES + " caracteres");
+            throw new IllegalStateException("JWT_SECRET must contain at least " + MIN_SECRET_BYTES + " characters");
         }
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
@@ -37,7 +40,7 @@ public class JwtService implements AccessTokenPort {
 
     @Override
     public IssuedAccessToken issue(User user) {
-        return new IssuedAccessToken(generateToken(user.email(), user.id()), expirationSeconds());
+        return new IssuedAccessToken(generateToken(user.email(), user.id(), credentialStamp(user.passwordHash())), expirationSeconds());
     }
 
     public long expirationSeconds() {
@@ -45,6 +48,10 @@ public class JwtService implements AccessTokenPort {
     }
 
     public String generateToken(String email, UUID userId) {
+        return generateToken(email, userId, null);
+    }
+
+    private String generateToken(String email, UUID userId, String credentialStamp) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -53,6 +60,7 @@ public class JwtService implements AccessTokenPort {
                 .subject(email)
                 .claim(USER_ID_CLAIM, userId.toString())
                 .claim(TYPE_CLAIM, ACCESS_TYPE)
+                .claim("credentials", credentialStamp)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationMs))
                 .signWith(signingKey)
@@ -76,6 +84,20 @@ public class JwtService implements AccessTokenPort {
         return UUID.fromString(extractAllClaims(token).get(USER_ID_CLAIM, String.class));
     }
 
+    public boolean matchesCredentials(String token, User user) {
+        return credentialStamp(user.passwordHash()).equals(extractAllClaims(token).get("credentials", String.class));
+    }
+
+    private String credentialStamp(String passwordHash) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(signingKey);
+            return HexFormat.of().formatHex(mac.doFinal(passwordHash.getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private Claims extractAllClaims(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
@@ -85,7 +107,15 @@ public class JwtService implements AccessTokenPort {
                 .parseSignedClaims(token)
                 .getPayload();
         if (!ACCESS_TYPE.equals(claims.get(TYPE_CLAIM, String.class))) {
-            throw new JwtException("El token no es de acceso");
+            throw new JwtException("The token is not an access token");
+        }
+        String userId = claims.get(USER_ID_CLAIM, String.class);
+        if (userId == null) {
+            throw new JwtException("Token user ID is required");
+        }
+        UUID.fromString(userId);
+        if (claims.getSubject() == null || claims.getSubject().isBlank()) {
+            throw new JwtException("Token subject is required");
         }
         return claims;
     }

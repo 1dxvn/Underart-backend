@@ -1,5 +1,6 @@
 package com.underart.infrastructure.security;
 
+import com.underart.domain.port.out.UserRepositoryPort;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String BEARER = "Bearer ";
 
     private final JwtService jwtService;
+    private final UserRepositoryPort users;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -31,6 +33,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (jwtService.validateToken(token)) {
             String email = jwtService.extractEmail(token);
             UUID userId = jwtService.extractUserId(token);
+            var user = users.findById(userId);
+            if (user.isEmpty() || !jwtService.matchesCredentials(token, user.get())) {
+                chain.doFilter(request, response);
+                return;
+            }
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(email, null, List.of());
             auth.setDetails(userId);

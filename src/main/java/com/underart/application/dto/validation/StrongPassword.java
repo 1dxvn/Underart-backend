@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface StrongPassword {
 
-    String message() default "debe tener entre 8 y 100 caracteres, con al menos una letra y un número";
+    String message() default "must contain 8 to 100 characters, including a letter and a number";
 
     Class<?>[] groups() default {};
 

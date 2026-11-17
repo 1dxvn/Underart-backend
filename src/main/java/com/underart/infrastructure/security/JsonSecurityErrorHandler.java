@@ -25,13 +25,13 @@ public class JsonSecurityErrorHandler implements AuthenticationEntryPoint, Acces
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException ex) throws IOException {
-        write(request, response, HttpStatus.UNAUTHORIZED, "Se requiere un token válido");
+        write(request, response, HttpStatus.UNAUTHORIZED, "A valid token is required");
     }
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException ex) throws IOException {
-        write(request, response, HttpStatus.FORBIDDEN, "Acceso denegado");
+        write(request, response, HttpStatus.FORBIDDEN, "Access denied");
     }
 
     private void write(HttpServletRequest request, HttpServletResponse response, HttpStatus status,

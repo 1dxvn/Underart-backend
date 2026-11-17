@@ -18,7 +18,7 @@ public class CurrentUserProvider {
     public UUID currentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getDetails() instanceof UUID userId)) {
-            throw new AuthenticationCredentialsNotFoundException("Se requiere autenticación");
+            throw new AuthenticationCredentialsNotFoundException("Authentication is required");
         }
         return userId;
     }

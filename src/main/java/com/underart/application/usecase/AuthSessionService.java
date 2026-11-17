@@ -8,8 +8,8 @@ import com.underart.domain.model.User;
 import com.underart.domain.port.in.AuthSessionUseCase;
 import com.underart.domain.port.in.AuthenticateUserUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
-import com.underart.domain.port.out.AccessTokenPort;
 import com.underart.domain.port.out.AccessTokenPort.IssuedAccessToken;
+import com.underart.domain.port.out.AccessTokenPort;
 import com.underart.domain.port.out.RateLimiterPort;
 import com.underart.domain.port.out.RefreshTokenRepositoryPort;
 import java.nio.charset.StandardCharsets;
@@ -58,8 +58,8 @@ public class AuthSessionService implements AuthSessionUseCase {
     public Session login(String email, String password) {
         String key = "login:" + EmailNormalizer.normalize(email);
         rateLimiter.blockedFor(key, MAX_FAILED_LOGINS, LOGIN_WINDOW).ifPresent(wait -> {
-            throw new TooManyRequestsException("Demasiados intentos fallidos. Inténtalo de nuevo en "
-                    + ((wait.toSeconds() + 59) / 60) + " minutos", wait.toSeconds());
+            throw new TooManyRequestsException("Too many failed attempts. Try again in "
+                    + ((wait.toSeconds() + 59) / 60) + " minutes", wait.toSeconds());
         });
         User user;
         try {
@@ -76,14 +76,14 @@ public class AuthSessionService implements AuthSessionUseCase {
     @Transactional(noRollbackFor = InvalidSessionException.class)
     public Session refresh(String rawRefreshToken) {
         RefreshToken current = refreshTokens.findByTokenHashForUpdate(hash(rawRefreshToken))
-                .orElseThrow(() -> new InvalidSessionException("La sesión no es válida. Inicia sesión de nuevo"));
+                .orElseThrow(() -> new InvalidSessionException("Invalid session. Sign in again"));
         Instant now = Instant.now();
         if (current.isRevoked()) {
             refreshTokens.revokeFamily(current.familyId(), now);
-            throw new InvalidSessionException("La sesión fue revocada por seguridad. Inicia sesión de nuevo");
+            throw new InvalidSessionException("Session revoked for security. Sign in again");
         }
         if (current.isExpired(now)) {
-            throw new InvalidSessionException("La sesión expiró. Inicia sesión de nuevo");
+            throw new InvalidSessionException("Session expired. Sign in again");
         }
         OpenedSession next = openSession(findUserUseCase.findById(current.userId()), current.familyId());
         refreshTokens.save(current.revokedBy(next.tokenId(), now));

@@ -1,6 +1,7 @@
 package com.underart.infrastructure.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.underart.domain.port.out.UserRepositoryPort;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +35,7 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(allowedOrigins.stream().map(String::trim).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of("X-Request-Id", "Retry-After"));
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -41,7 +43,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, ObjectMapper objectMapper)
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, ObjectMapper objectMapper,
+                                    UserRepositoryPort users)
             throws Exception {
         JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
         http.csrf(csrf -> csrf.disable())
@@ -58,7 +61,7 @@ public class SecurityConfig {
                                 "/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthFilter(jwtService),
+                .addFilterBefore(new JwtAuthFilter(jwtService, users),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
