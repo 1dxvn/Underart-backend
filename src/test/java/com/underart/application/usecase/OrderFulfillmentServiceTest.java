@@ -35,7 +35,7 @@ class OrderFulfillmentServiceTest {
     @BeforeEach
     void setUp() {
         paid = Order.pending(UUID.randomUUID(), buyerId, new BigDecimal("100.00")).withPaymentStatus(PaymentStatus.PAID);
-        when(orders.findById(paid.id())).thenReturn(Optional.of(paid));
+        when(orders.findByIdForUpdate(paid.id())).thenReturn(Optional.of(paid));
         when(orders.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
         when(parties.isSeller(paid, sellerId)).thenReturn(true);
     }
@@ -61,7 +61,7 @@ class OrderFulfillmentServiceTest {
     @Test
     void buyerConfirmsDeliveryOfAShippedOrder() {
         Order shipped = paid.markShipped("DHL", "123", java.time.Instant.now());
-        when(orders.findById(shipped.id())).thenReturn(Optional.of(shipped));
+        when(orders.findByIdForUpdate(shipped.id())).thenReturn(Optional.of(shipped));
 
         assertThat(service.confirmDelivery(shipped.id(), buyerId).shippingStatus()).isEqualTo(ShippingStatus.DELIVERED);
         assertThatThrownBy(() -> service.confirmDelivery(shipped.id(), sellerId))

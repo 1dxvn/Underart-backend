@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,32 +27,34 @@ public class OrderFulfillmentService implements OrderFulfillmentUseCase {
     private final NotificationSenderPort notifications;
 
     @Override
+    @Transactional
     public Order ship(UUID orderId, UUID sellerId, String carrier, String trackingNumber) {
         Order order = find(orderId);
         if (!orderParties.isSeller(order, sellerId)) {
-            throw new ForbiddenOperationException("Solo el vendedor puede marcar la orden como enviada");
+            throw new ForbiddenOperationException("Only the seller can mark the order as shipped");
         }
         Order shipped = orderRepository.save(order.markShipped(carrier.trim(), trackingNumber.trim(), Instant.now()));
         String title = orderParties.artworkOf(order).map(Artwork::title).orElse("tu obra");
         notifications.send(Notification.create(shipped.winnerId(), NotificationType.ORDER_SHIPPED,
-                "Tu obra va en camino", "«" + title + "» salió con " + shipped.carrier() + ". Guía: "
-                        + shipped.trackingNumber() + ". Confirma la entrega cuando la recibas.", data(shipped)));
-        activityLogRepository.log("ORDER_SHIPPED", "Orden " + orderId + " enviada con " + shipped.carrier(), sellerId,
+                "Your artwork is on its way", "«" + title + "» was shipped with " + shipped.carrier() + ". Tracking number: "
+                        + shipped.trackingNumber() + ". Confirm delivery when it arrives.", data(shipped)));
+        activityLogRepository.log("ORDER_SHIPPED", "Order " + orderId + " shipped with " + shipped.carrier(), sellerId,
                 Map.of("orderId", orderId.toString(), "trackingNumber", shipped.trackingNumber()));
         return shipped;
     }
 
     @Override
+    @Transactional
     public Order confirmDelivery(UUID orderId, UUID buyerId) {
         Order order = find(orderId);
         if (!order.winnerId().equals(buyerId)) {
-            throw new ForbiddenOperationException("Solo el comprador puede confirmar la entrega");
+            throw new ForbiddenOperationException("Only the buyer can confirm delivery");
         }
         Order delivered = orderRepository.save(order.markDelivered(Instant.now()));
         orderParties.artworkOf(order).ifPresent(artwork -> notifications.send(Notification.create(
-                artwork.artistId(), NotificationType.ORDER_DELIVERED, "Entrega confirmada",
-                "El comprador recibió «" + artwork.title() + "».", data(delivered))));
-        activityLogRepository.log("ORDER_DELIVERED", "Orden " + orderId + " entregada", buyerId,
+                artwork.artistId(), NotificationType.ORDER_DELIVERED, "Delivery confirmed",
+                "The buyer received «" + artwork.title() + "».", data(delivered))));
+        activityLogRepository.log("ORDER_DELIVERED", "Order " + orderId + " delivered", buyerId,
                 Map.of("orderId", orderId.toString()));
         return delivered;
     }
@@ -61,7 +64,7 @@ public class OrderFulfillmentService implements OrderFulfillmentUseCase {
     }
 
     private Order find(UUID orderId) {
-        return orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + orderId));
+        return orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
     }
 }
