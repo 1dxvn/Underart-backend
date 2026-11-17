@@ -24,13 +24,13 @@ import com.underart.domain.port.in.ListBidsUseCase;
 import com.underart.domain.port.in.ListOrdersUseCase;
 import com.underart.domain.port.in.SellerStatsUseCase;
 import com.underart.domain.port.in.UpdatePaymentMethodUseCase;
-import com.underart.domain.port.in.UpdateUserProfileUseCase;
 import com.underart.domain.port.in.UpdateUserProfileUseCase.UpdateProfileCommand;
+import com.underart.domain.port.in.UpdateUserProfileUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
-import jakarta.validation.Valid;
-import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Mi cuenta", description = "Perfil, seguridad, compras, ventas y estadísticas del usuario autenticado")
+@Tag(name = "My account", description = "Current user profile, security, purchases, sales and statistics")
 @RequestMapping("/api/v1/users/me")
 @RequiredArgsConstructor
 public class CurrentUserController {
@@ -66,28 +66,28 @@ public class CurrentUserController {
     }
 
     @PutMapping
-    @Operation(summary = "Actualizar nombre, ciudad y dirección")
+    @Operation(summary = "Update name, city and address")
     public ResponseEntity<UserResponse> update(@Valid @RequestBody UpdateProfileRequest req) {
         return ResponseEntity.ok(UserResponse.from(updateProfileUseCase.update(new UpdateProfileCommand(
                 currentUser.currentUserId(), req.username(), req.city(), req.shippingAddress()))));
     }
 
     @PutMapping("/password")
-    @Operation(summary = "Cambiar la contraseña (cierra todas las sesiones)")
+    @Operation(summary = "Change password and revoke existing credentials")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         changePasswordUseCase.change(currentUser.currentUserId(), req.currentPassword(), req.newPassword());
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/payment-method")
-    @Operation(summary = "Registrar el método de pago (id pm_... de Stripe)")
+    @Operation(summary = "Register a payment method (Stripe pm_... ID)")
     public ResponseEntity<UserResponse> updatePaymentMethod(@Valid @RequestBody PaymentMethodRequest req) {
         return ResponseEntity.ok(UserResponse.from(
                 updatePaymentMethodUseCase.updatePaymentToken(currentUser.currentUserId(), req.paymentToken())));
     }
 
     @GetMapping("/bids")
-    @Operation(summary = "Mis pujas")
+    @Operation(summary = "My bids")
     public ResponseEntity<PageResponse<BidResponse>> bids(@RequestParam(required = false) Integer page,
                                                           @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(
@@ -95,7 +95,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/orders")
-    @Operation(summary = "Mis compras")
+    @Operation(summary = "My purchases")
     public ResponseEntity<PageResponse<OrderResponse>> purchases(@RequestParam(required = false) Integer page,
                                                                  @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listOrdersUseCase.listPurchases(
@@ -103,7 +103,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/sales")
-    @Operation(summary = "Mis ventas")
+    @Operation(summary = "My sales")
     public ResponseEntity<PageResponse<OrderResponse>> sales(@RequestParam(required = false) Integer page,
                                                              @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listOrdersUseCase.listSales(
@@ -111,7 +111,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/artworks")
-    @Operation(summary = "Mis obras")
+    @Operation(summary = "My artworks")
     public ResponseEntity<PageResponse<ArtworkResponse>> artworks(@RequestParam(required = false) Integer page,
                                                                   @RequestParam(required = false) Integer size) {
         UUID me = currentUser.currentUserId();
@@ -120,7 +120,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/auctions")
-    @Operation(summary = "Subastas de mis obras")
+    @Operation(summary = "My artwork auctions")
     public ResponseEntity<PageResponse<AuctionResponse>> auctions(@RequestParam(required = false) Integer page,
                                                                   @RequestParam(required = false) Integer size) {
         UUID me = currentUser.currentUserId();
@@ -129,13 +129,13 @@ public class CurrentUserController {
     }
 
     @GetMapping("/stats")
-    @Operation(summary = "Estadísticas de vendedor y comprador")
+    @Operation(summary = "Seller and buyer statistics")
     public ResponseEntity<SellerStatsResponse> stats() {
         return ResponseEntity.ok(SellerStatsResponse.from(sellerStatsUseCase.statsFor(currentUser.currentUserId())));
     }
 
     @GetMapping("/favorites")
-    @Operation(summary = "Mis obras favoritas")
+    @Operation(summary = "My favorite artworks")
     public ResponseEntity<PageResponse<ArtworkResponse>> favorites(@RequestParam(required = false) Integer page,
                                                                    @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(favoritesUseCase.list(currentUser.currentUserId(),
@@ -143,7 +143,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/activity")
-    @Operation(summary = "Mi historial de actividad")
+    @Operation(summary = "My activity history")
     public ResponseEntity<PageResponse<ActivityLogResponse>> activity(@RequestParam(required = false) Integer page,
                                                                       @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listActivityUseCase.listForUser(

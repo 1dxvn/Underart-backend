@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Notificaciones", description = "Bandeja de notificaciones del usuario autenticado")
+@Tag(name = "Notifications", description = "Current user notifications")
 @RequestMapping("/api/v1/users/me/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
@@ -27,7 +27,7 @@ public class NotificationController {
     private final NotificationsUseCase notificationsUseCase;
 
     @GetMapping
-    @Operation(summary = "Listar notificaciones, opcionalmente solo las no leídas")
+    @Operation(summary = "List notifications, optionally unread only")
     public ResponseEntity<PageResponse<NotificationResponse>> list(
             @RequestParam(defaultValue = "false") boolean unreadOnly,
             @RequestParam(required = false) Integer page,
@@ -37,20 +37,20 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
-    @Operation(summary = "Número de notificaciones sin leer")
+    @Operation(summary = "Unread notification count")
     public ResponseEntity<CountResponse> unreadCount() {
         return ResponseEntity.ok(new CountResponse(notificationsUseCase.unreadCount(currentUser.currentUserId())));
     }
 
     @PostMapping("/{id}/read")
-    @Operation(summary = "Marcar una notificación como leída")
+    @Operation(summary = "Mark a notification as read")
     public ResponseEntity<Void> markRead(@PathVariable String id) {
         notificationsUseCase.markRead(currentUser.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/read-all")
-    @Operation(summary = "Marcar todas como leídas")
+    @Operation(summary = "Mark all notifications as read")
     public ResponseEntity<Void> markAllRead() {
         notificationsUseCase.markAllRead(currentUser.currentUserId());
         return ResponseEntity.noContent().build();

@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MediaStorageException.class)
     public ResponseEntity<ApiError> handleStorage(MediaStorageException ex) {
-        log.error("Error de almacenamiento: {}", ex.getMessage(), ex.getCause());
+        log.error("Storage error: {}", ex.getMessage(), ex.getCause());
         return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex) {
-        return build(HttpStatus.UNAUTHORIZED, "Se requiere un token válido");
+        return build(HttpStatus.UNAUTHORIZED, "A valid token is required");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -92,67 +92,67 @@ public class GlobalExceptionHandler {
         List<ApiError.FieldError> fields = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> new ApiError.FieldError(error.getField(), error.getDefaultMessage()))
                 .toList();
-        String message = fields.isEmpty() ? "Validación fallida"
+        String message = fields.isEmpty() ? "Validation failed"
                 : fields.get(0).field() + ": " + fields.get(0).message();
         return build(HttpStatus.BAD_REQUEST, message, fields);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        return build(HttpStatus.BAD_REQUEST, "Parámetro inválido: " + ex.getName());
+        return build(HttpStatus.BAD_REQUEST, "Invalid parameter: " + ex.getName());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleNotReadable(HttpMessageNotReadableException ex) {
-        return build(HttpStatus.BAD_REQUEST, "Cuerpo de la petición inválido");
+        return build(HttpStatus.BAD_REQUEST, "Invalid request body");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiError> handleMissingParam(MissingServletRequestParameterException ex) {
-        return build(HttpStatus.BAD_REQUEST, "Parámetro requerido faltante: " + ex.getParameterName());
+        return build(HttpStatus.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName());
     }
 
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<ApiError> handleMissingPart(MissingServletRequestPartException ex) {
-        return build(HttpStatus.BAD_REQUEST, "Falta el archivo: " + ex.getRequestPartName());
+        return build(HttpStatus.BAD_REQUEST, "Missing file: " + ex.getRequestPartName());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUpload(MaxUploadSizeExceededException ex) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE,
-                "El archivo es demasiado grande. Para videos grandes usa la subida directa (upload-url)");
+                "File too large. Use direct upload (upload-url) for large videos");
     }
 
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ApiError> handleMultipart(MultipartException ex) {
-        return build(HttpStatus.BAD_REQUEST, "Petición multipart inválida");
+        return build(HttpStatus.BAD_REQUEST, "Invalid multipart request");
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiError> handleMediaType(HttpMediaTypeNotSupportedException ex) {
-        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado");
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported content type");
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
-        return build(HttpStatus.NOT_FOUND, "Recurso no encontrado");
+        return build(HttpStatus.NOT_FOUND, "Resource not found");
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
-        return build(HttpStatus.METHOD_NOT_ALLOWED, "Método no permitido");
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed");
     }
 
     @ExceptionHandler({DataIntegrityViolationException.class, PessimisticLockingFailureException.class})
     public ResponseEntity<ApiError> handleConflict(RuntimeException ex) {
-        log.warn("Conflicto de datos: {}", ex.getMessage());
-        return build(HttpStatus.CONFLICT, "La operación entra en conflicto con otra. Inténtalo de nuevo");
+        log.warn("Data conflict: {}", ex.getMessage());
+        return build(HttpStatus.CONFLICT, "Operation conflicts with another request. Try again");
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
-        log.error("Error no controlado", ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor");
+        log.error("Unhandled error", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message) {

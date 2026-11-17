@@ -8,10 +8,10 @@ import com.underart.domain.model.PageQuery;
 import com.underart.domain.port.in.ListBidsUseCase;
 import com.underart.domain.port.in.PlaceBidUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
-import jakarta.validation.Valid;
-import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Pujas", description = "Pujas sobre subastas activas")
+@Tag(name = "Bids", description = "Pujas sobre subastas activas")
 @RequestMapping("/api/v1/auctions")
 @RequiredArgsConstructor
 public class BidController {
@@ -34,7 +34,7 @@ public class BidController {
     private final ListBidsUseCase listBidsUseCase;
 
     @GetMapping("/{id}/bids")
-    @Operation(summary = "Historial de pujas, la más reciente primero")
+    @Operation(summary = "Bid history, newest first")
     public ResponseEntity<PageResponse<BidResponse>> list(@PathVariable UUID id,
                                                           @RequestParam(required = false) Integer page,
                                                           @RequestParam(required = false) Integer size) {
@@ -43,7 +43,7 @@ public class BidController {
     }
 
     @PostMapping("/{id}/bids")
-    @Operation(summary = "Pujar; debe igualar o superar la puja mínima")
+    @Operation(summary = "Place a bid at or above the minimum next bid")
     public ResponseEntity<BidResponse> place(@PathVariable UUID id, @Valid @RequestBody BidRequest req) {
         Bid bid = placeBidUseCase.place(id, currentUser.currentUserId(), req.amount());
         return ResponseEntity.status(HttpStatus.CREATED).body(BidResponse.from(bid));

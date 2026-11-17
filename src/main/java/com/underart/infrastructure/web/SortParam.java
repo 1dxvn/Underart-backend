@@ -15,8 +15,8 @@ public record SortParam<E extends Enum<E>>(E field, boolean ascending) {
         E field = allowed.get(parts[0].trim());
         String direction = parts.length > 1 ? parts[1].trim().toLowerCase(Locale.ROOT) : "asc";
         if (field == null || !direction.equals("asc") && !direction.equals("desc")) {
-            throw new BusinessRuleException("Orden no válido: '" + raw + "'. Usa uno de " + allowed.keySet()
-                    + " seguido de ,asc o ,desc");
+            throw new BusinessRuleException("Invalid sort: '" + raw + "'. Use one of " + allowed.keySet()
+                    + " followed by ,asc or ,desc");
         }
         return new SortParam<>(field, direction.equals("asc"));
     }

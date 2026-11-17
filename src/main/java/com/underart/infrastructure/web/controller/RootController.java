@@ -9,16 +9,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Estado", description = "Estado general del servicio")
+@Tag(name = "Status", description = "Status general del servicio")
 public class RootController {
 
     @GetMapping("/")
-    @Operation(summary = "Comprobar que el servicio está en marcha")
+    @Operation(summary = "Check service status")
     @SecurityRequirements
     public ResponseEntity<Map<String, String>> root() {
         return ResponseEntity.ok(Map.of(
                 "application", "Underart Backend",
                 "status", "UP",
-                "message", "Underart Backend está funcionando"));
+                "message", "Underart Backend is running"));
     }
 }

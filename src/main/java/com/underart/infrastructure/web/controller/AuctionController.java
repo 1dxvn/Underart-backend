@@ -12,20 +12,20 @@ import com.underart.domain.model.AuctionType;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PriceRange;
 import com.underart.domain.port.in.CancelAuctionUseCase;
-import com.underart.domain.port.in.CreateAuctionUseCase;
 import com.underart.domain.port.in.CreateAuctionUseCase.CreateAuctionCommand;
+import com.underart.domain.port.in.CreateAuctionUseCase;
 import com.underart.domain.port.in.FindAuctionUseCase;
 import com.underart.domain.port.in.ListAuctionsUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
 import com.underart.infrastructure.web.SortParam;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirements;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Subastas", description = "Creación, búsqueda, detalle y cancelación de subastas")
+@Tag(name = "Auctions", description = "Create, search, view and cancel auctions")
 @RequestMapping("/api/v1/auctions")
 @RequiredArgsConstructor
 public class AuctionController {
@@ -56,7 +56,7 @@ public class AuctionController {
     private final CancelAuctionUseCase cancelAuctionUseCase;
 
     @GetMapping
-    @Operation(summary = "Buscar subastas con filtros, rango de precio y orden")
+    @Operation(summary = "Search auctions with filters, price range and sorting")
     @SecurityRequirements
     public ResponseEntity<PageResponse<AuctionResponse>> list(
             @RequestParam(required = false) AuctionStatus status,
@@ -77,14 +77,14 @@ public class AuctionController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Detalle con precio actual, puja más alta y puja mínima")
+    @Operation(summary = "Details with current price, highest bid and minimum next bid")
     @SecurityRequirements
     public ResponseEntity<AuctionDetailResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(AuctionDetailResponse.from(findAuctionUseCase.findById(id)));
     }
 
     @PostMapping
-    @Operation(summary = "Crear una subasta para una obra propia")
+    @Operation(summary = "Create an auction for your artwork")
     public ResponseEntity<AuctionResponse> create(@Valid @RequestBody CreateAuctionRequest req) {
         Auction auction = createAuctionUseCase.create(new CreateAuctionCommand(
                 currentUser.currentUserId(), req.artworkId(), req.type(), req.basePrice(),
@@ -94,7 +94,7 @@ public class AuctionController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Cancelar una subasta activa sin pujas (solo el autor)")
+    @Operation(summary = "Cancel an active auction without bids (artist only)")
     public ResponseEntity<Void> cancel(@PathVariable UUID id) {
         cancelAuctionUseCase.cancel(id, currentUser.currentUserId());
         return ResponseEntity.noContent().build();
