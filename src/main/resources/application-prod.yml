@@ -19,3 +19,12 @@ logging:
   level:
     root: INFO
     com.underart: INFO
+
+payment:
+  provider: ${PAYMENT_PROVIDER}
+
+springdoc:
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
