@@ -36,7 +36,7 @@ public class GroqAiAdapter extends AbstractAiAdapter {
         try {
             return mapper.readTree(raw).at("/choices/0/message/content").asText();
         } catch (Exception e) {
-            throw new AiProviderException("Respuesta de Groq inválida: " + e.getMessage());
+            throw new AiProviderException("Invalid Groq response: " + e.getMessage());
         }
     }
 

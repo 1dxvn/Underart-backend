@@ -12,11 +12,11 @@ jwt:
 
 ai:
   groq:
-    api-key: ${GROQ_API_KEY:dev-no-key}
+    api-key: ${GROQ_API_KEY:}
   openai:
-    api-key: ${OPENAI_API_KEY:dev-no-key}
+    api-key: ${OPENAI_API_KEY:}
 
 logging:
   level:
     root: INFO
-    com.underart: DEBUG
+    com.underart: INFO

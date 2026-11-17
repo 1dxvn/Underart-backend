@@ -1,5 +1,7 @@
 package com.underart.infrastructure.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.underart.domain.port.out.UserRepositoryPort;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +35,7 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(allowedOrigins.stream().map(String::trim).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of("X-Request-Id", "Retry-After"));
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -40,8 +43,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService) throws Exception {
-        JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler();
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, ObjectMapper objectMapper,
+                                    UserRepositoryPort users)
+            throws Exception {
+        JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -51,12 +56,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/artworks", "/api/v1/artworks/*",
                                 "/api/v1/artworks/*/media", "/api/v1/auctions", "/api/v1/auctions/*",
-                                "/api/v1/users/*").permitAll()
+                                "/api/v1/users/*", "/api/v1/users/*/reviews").permitAll()
                         .requestMatchers("/", "/api/v1/users/register", "/api/v1/auth/**",
-                                "/actuator/health", "/actuator/health/**",
+                                "/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthFilter(jwtService),
+                .addFilterBefore(new JwtAuthFilter(jwtService, users),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -11,21 +11,25 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class DeleteArtworkMediaService implements DeleteArtworkMediaUseCase {
 
     private final ArtworkRepositoryPort artworkRepository;
+    private final ArtworkEditingPolicy editingPolicy;
     private final ArtworkMediaRepositoryPort mediaRepository;
     private final MediaStoragePort mediaStorage;
 
     @Override
+    @Transactional
     public void delete(UUID artworkId, UUID mediaId, UUID requesterId) {
-        ArtworkOwnership.requireOwned(artworkRepository, artworkId, requesterId);
+        ArtworkOwnership.requireOwnedForUpdate(artworkRepository, artworkId, requesterId);
+        editingPolicy.requireEditable(artworkId);
         ArtworkMedia media = mediaRepository.findById(mediaId)
                 .filter(m -> m.artworkId().equals(artworkId))
-                .orElseThrow(() -> new ResourceNotFoundException("Archivo no encontrado: " + mediaId));
+                .orElseThrow(() -> new ResourceNotFoundException("Media not found: " + mediaId));
         mediaStorage.delete(media.storageKey());
         mediaRepository.deleteById(mediaId);
         List<ArtworkMedia> remaining = mediaRepository.findByArtworkId(artworkId);

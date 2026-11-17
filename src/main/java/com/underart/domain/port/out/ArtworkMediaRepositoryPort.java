@@ -1,7 +1,9 @@
 package com.underart.domain.port.out;
 
 import com.underart.domain.model.ArtworkMedia;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,4 +20,6 @@ public interface ArtworkMediaRepositoryPort {
     long countByArtworkId(UUID artworkId);
 
     void deleteById(UUID id);
+
+    Map<UUID, String> coverUrlsByArtworkIds(Collection<UUID> artworkIds);
 }

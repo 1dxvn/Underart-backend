@@ -26,7 +26,8 @@ class CreateAuctionServiceTest {
     private final AuctionRepositoryPort auctions = mock(AuctionRepositoryPort.class);
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final CreateAuctionService service = new CreateAuctionService(auctions, artworks, log);
+    private final com.underart.domain.port.out.OrderRepositoryPort orders = mock(com.underart.domain.port.out.OrderRepositoryPort.class);
+    private final CreateAuctionService service = new CreateAuctionService(auctions, artworks, log, orders);
     private final UUID artistId = UUID.randomUUID();
     private UUID artworkId;
 
@@ -58,7 +59,7 @@ class CreateAuctionServiceTest {
     void rejectsImmediatePriceNotAboveBase() {
         assertThatThrownBy(() -> service.create(cmd(artistId, AuctionType.IMMEDIATE, "100", null,
                 Instant.now().plusSeconds(3600)))).isInstanceOf(BusinessRuleException.class)
-                .hasMessage("El precio de compra inmediata debe superar el precio base");
+                .hasMessage("The buy-now price must exceed the base price");
     }
 
     @Test
@@ -66,7 +67,7 @@ class CreateAuctionServiceTest {
         when(auctions.existsActiveByArtworkId(artworkId)).thenReturn(true);
         assertThatThrownBy(() -> service.create(cmd(artistId, AuctionType.SIMPLE, null, null,
                 Instant.now().plusSeconds(3600)))).isInstanceOf(BusinessRuleException.class)
-                .hasMessage("La obra ya tiene una subasta activa");
+                .hasMessage("This artwork already has an active auction");
     }
 
     @Test

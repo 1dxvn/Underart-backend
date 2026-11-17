@@ -18,6 +18,7 @@ import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
+import com.underart.domain.port.out.NotificationSenderPort;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -31,7 +32,8 @@ class PlaceBidServiceTest {
     private final BidRepositoryPort bids = mock(BidRepositoryPort.class);
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final PlaceBidService service = new PlaceBidService(auctions, bids, artworks, log);
+    private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
+    private final PlaceBidService service = new PlaceBidService(auctions, bids, artworks, log, notifications);
     private final UUID auctionId = UUID.randomUUID();
     private final UUID artistId = UUID.randomUUID();
     private final UUID buyerId = UUID.randomUUID();
@@ -54,7 +56,7 @@ class PlaceBidServiceTest {
     void rejectsBidOnEndedAuction() {
         givenAuction(Instant.now().minusSeconds(7200), Instant.now().minusSeconds(60));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("La subasta ya terminó");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("The auction has ended");
         verify(bids, never()).save(any());
     }
 
@@ -62,14 +64,14 @@ class PlaceBidServiceTest {
     void rejectsBidBeforeStart() {
         givenAuction(Instant.now().plusSeconds(600), Instant.now().plusSeconds(7200));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("La subasta aún no ha comenzado");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("The auction has not started");
     }
 
     @Test
     void rejectsBidOnOwnArtwork() {
         givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
         assertThatThrownBy(() -> service.place(auctionId, artistId, new BigDecimal("150")))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("No puedes pujar en tu propia obra");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("You cannot bid on your own artwork");
     }
 
     @Test
@@ -85,7 +87,7 @@ class PlaceBidServiceTest {
         when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
                 new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
         assertThatThrownBy(() -> service.place(auctionId, buyerId, new BigDecimal("200")))
-                .isInstanceOf(InvalidBidException.class).hasMessage("La puja debe superar la puja actual");
+                .isInstanceOf(InvalidBidException.class).hasMessage("The minimum bid is 210.00");
     }
 
     @Test
@@ -95,5 +97,67 @@ class PlaceBidServiceTest {
         assertThat(bid.amount()).isEqualByComparingTo("150");
         assertThat(bid.buyerId()).isEqualTo(buyerId);
         verify(log).log(any(), any(), any(), any());
+    }
+
+    @Test
+    void firstBidMayEqualTheBasePrice() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        assertThat(service.place(auctionId, buyerId, new BigDecimal("100.00")).amount()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void acceptsBidExactlyAtTheMinimumIncrement() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, UUID.randomUUID(), new BigDecimal("200"), Instant.now())));
+        assertThat(service.place(auctionId, buyerId, new BigDecimal("210.00")).amount()).isEqualByComparingTo("210");
+    }
+
+    @Test
+    void lastMinuteBidExtendsTheAuction() {
+        givenAuction(Instant.now().minusSeconds(3600), Instant.now().plusSeconds(30));
+
+        service.place(auctionId, buyerId, new BigDecimal("150"));
+
+        org.mockito.ArgumentCaptor<Auction> saved = org.mockito.ArgumentCaptor.forClass(Auction.class);
+        verify(auctions).save(saved.capture());
+        assertThat(saved.getValue().endDate()).isAfter(Instant.now().plusSeconds(110));
+    }
+
+    @Test
+    void earlyBidDoesNotTouchTheEndDate() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+
+        service.place(auctionId, buyerId, new BigDecimal("150"));
+
+        verify(auctions, never()).save(any());
+    }
+
+    @Test
+    void notifiesThePreviousHighestBidderWhenOutbid() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        UUID previousBidder = UUID.randomUUID();
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, previousBidder, new BigDecimal("150"), Instant.now())));
+
+        service.place(auctionId, buyerId, new BigDecimal("200"));
+
+        org.mockito.ArgumentCaptor<com.underart.domain.model.Notification> sent =
+                org.mockito.ArgumentCaptor.forClass(com.underart.domain.model.Notification.class);
+        verify(notifications).send(sent.capture());
+        assertThat(sent.getValue().userId()).isEqualTo(previousBidder);
+        assertThat(sent.getValue().type()).isEqualTo(com.underart.domain.model.NotificationType.OUTBID);
+        assertThat(sent.getValue().data()).containsEntry("auctionId", auctionId.toString());
+    }
+
+    @Test
+    void doesNotNotifyWhenRaisingYourOwnBid() {
+        givenAuction(Instant.now().minusSeconds(60), Instant.now().plusSeconds(3600));
+        when(bids.findHighestBid(auctionId)).thenReturn(Optional.of(
+                new Bid(UUID.randomUUID(), auctionId, buyerId, new BigDecimal("150"), Instant.now())));
+
+        service.place(auctionId, buyerId, new BigDecimal("200"));
+
+        org.mockito.Mockito.verifyNoInteractions(notifications);
     }
 }

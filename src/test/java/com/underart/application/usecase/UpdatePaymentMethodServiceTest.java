@@ -15,16 +15,15 @@ import org.junit.jupiter.api.Test;
 
 class UpdatePaymentMethodServiceTest {
 
-    private final FindUserUseCase users = mock(FindUserUseCase.class);
     private final UserRepositoryPort repository = mock(UserRepositoryPort.class);
     private final PaymentGatewayPort gateway = mock(PaymentGatewayPort.class);
-    private final UpdatePaymentMethodService service = new UpdatePaymentMethodService(users, repository, gateway);
+    private final UpdatePaymentMethodService service = new UpdatePaymentMethodService(repository, gateway);
 
     @Test
     void storesTheTokenReturnedByTheGatewayNotTheRawReference() {
         UUID id = UUID.randomUUID();
         User user = new User(id, "ana", "ana@test.com", "hash", null, null, null, Instant.now());
-        when(users.findById(id)).thenReturn(user);
+        when(repository.findByIdForUpdate(id)).thenReturn(java.util.Optional.of(user));
         when(gateway.registerPaymentMethod("ana@test.com", "pm_card_visa")).thenReturn("cus_1:pm_card_visa");
         when(repository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 

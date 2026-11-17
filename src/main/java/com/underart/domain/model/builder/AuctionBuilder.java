@@ -1,5 +1,6 @@
 package com.underart.domain.model.builder;
 
+import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.AuctionType;
@@ -50,9 +51,15 @@ public class AuctionBuilder {
 
     public Auction build() {
         if (artworkId == null || basePrice == null || endDate == null) {
-            throw new IllegalStateException("Faltan artwork, basePrice o endDate");
+            throw new IllegalStateException("Missing artwork, basePrice or endDate");
         }
         Instant start = startDate != null ? startDate : Instant.now();
+        if (basePrice.signum() <= 0 || basePrice.scale() > 2 || type == null || !endDate.isAfter(start)
+                || (immediatePurchasePrice != null && (immediatePurchasePrice.scale() > 2
+                || immediatePurchasePrice.compareTo(basePrice) <= 0))
+                || (type == AuctionType.IMMEDIATE && immediatePurchasePrice == null)) {
+            throw new BusinessRuleException("Invalid auction prices or dates");
+        }
         return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice, start, endDate);
     }
 }

@@ -2,6 +2,7 @@ package com.underart.infrastructure.payment;
 
 import com.underart.domain.port.out.PaymentGatewayPort;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -20,8 +21,8 @@ public class SimulatedPaymentGatewayAdapter implements PaymentGatewayPort {
     @Override
     public PaymentResult charge(String paymentToken, BigDecimal amount, String reference) {
         if (paymentToken.startsWith(DECLINED_PREFIX)) {
-            return new PaymentResult(false, null, "tarjeta rechazada (simulación)");
+            return new PaymentResult(false, null, "card declined (simulation)");
         }
-        return new PaymentResult(true, "sim_" + UUID.randomUUID(), "aprobado (simulación)");
+        return new PaymentResult(true, "sim_" + UUID.nameUUIDFromBytes(reference.getBytes(StandardCharsets.UTF_8)), "approved (simulation)");
     }
 }

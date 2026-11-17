@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.underart.domain.model.PageResult;
-import com.underart.domain.port.in.AuthenticateUserUseCase;
+import com.underart.domain.port.in.AuthSessionUseCase;
 import com.underart.domain.port.in.CreateArtworkUseCase;
 import com.underart.domain.port.in.DeleteArtworkUseCase;
 import com.underart.domain.port.in.FindArtworkUseCase;
@@ -53,9 +53,17 @@ class SecurityRulesTest {
     @MockBean
     private DeleteArtworkUseCase deleteArtworkUseCase;
     @MockBean
-    private AuthenticateUserUseCase authenticateUserUseCase;
+    private AuthSessionUseCase authSessionUseCase;
+    @MockBean
+    private com.underart.domain.port.in.FavoritesUseCase favoritesUseCase;
+
+    @MockBean
+    private com.underart.domain.port.out.UserRepositoryPort users;
 
     private void validToken() {
+        when(users.findById(any())).thenReturn(java.util.Optional.of(new com.underart.domain.model.User(
+                UUID.randomUUID(), "demo", "demo@underart.com", "hash", null, null, null, java.time.Instant.now())));
+        when(jwtService.matchesCredentials(any(), any())).thenReturn(true);
         when(jwtService.validateToken("good")).thenReturn(true);
         when(jwtService.extractEmail("good")).thenReturn("demo@underart.com");
         when(jwtService.extractUserId("good")).thenReturn(UUID.randomUUID());
@@ -81,16 +89,40 @@ class SecurityRulesTest {
     @Test
     void writingWithoutTokenReturnsJson401() throws Exception {
         mockMvc.perform(post("/api/v1/artworks").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Obra\"}"))
+                        .content("{\"title\":\"Artwork\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
+    void errorsCarryPathRequestIdAndFieldErrors() throws Exception {
+        validToken();
+        mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer good")
+                        .header("X-Request-Id", "test-request-0001")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("X-Request-Id", "test-request-0001"))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/api/v1/artworks"))
+                .andExpect(jsonPath("$.requestId").value("test-request-0001"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("title"));
+    }
+
+    @Test
+    void securityErrorsUseTheSameFormat() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.path").value("/api/v1/users/me"))
+                .andExpect(jsonPath("$.requestId").isNotEmpty())
+                .andExpect(jsonPath("$.fieldErrors").isArray());
     }
 
     @Test
     void writingWithInvalidTokenReturns401() throws Exception {
         when(jwtService.validateToken("bad")).thenReturn(false);
         mockMvc.perform(post("/api/v1/artworks").header("Authorization", "Bearer bad")
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Obra\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Artwork\"}"))
                 .andExpect(status().isUnauthorized());
     }
 

@@ -8,10 +8,12 @@ import com.underart.domain.port.in.CreateAuctionUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
+import com.underart.domain.port.out.OrderRepositoryPort;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,19 +22,24 @@ public class CreateAuctionService implements CreateAuctionUseCase {
     private final AuctionRepositoryPort auctionRepository;
     private final ArtworkRepositoryPort artworkRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
+    private final OrderRepositoryPort orderRepository;
 
     @Override
+    @Transactional
     public Auction create(CreateAuctionCommand cmd) {
-        ArtworkOwnership.requireOwned(artworkRepository, cmd.artworkId(), cmd.requesterId());
+        ArtworkOwnership.requireOwnedForUpdate(artworkRepository, cmd.artworkId(), cmd.requesterId());
+        if (orderRepository.reservesArtwork(cmd.artworkId())) {
+            throw new BusinessRuleException("This artwork is reserved or sold");
+        }
         if (cmd.type() == AuctionType.IMMEDIATE && cmd.immediatePurchasePrice() == null) {
-            throw new BusinessRuleException("La compra inmediata requiere un precio de compra inmediata");
+            throw new BusinessRuleException("Buy-now auctions require a buy-now price");
         }
         if (cmd.immediatePurchasePrice() != null
                 && cmd.immediatePurchasePrice().compareTo(cmd.basePrice()) <= 0) {
-            throw new BusinessRuleException("El precio de compra inmediata debe superar el precio base");
+            throw new BusinessRuleException("The buy-now price must exceed the base price");
         }
         if (auctionRepository.existsActiveByArtworkId(cmd.artworkId())) {
-            throw new BusinessRuleException("La obra ya tiene una subasta activa");
+            throw new BusinessRuleException("This artwork already has an active auction");
         }
         Auction auction = new AuctionBuilder()
                 .withArtwork(cmd.artworkId())
@@ -43,10 +50,10 @@ public class CreateAuctionService implements CreateAuctionUseCase {
                 .withEndDate(cmd.endDate())
                 .build();
         if (!auction.endDate().isAfter(auction.startDate()) || !auction.endDate().isAfter(Instant.now())) {
-            throw new BusinessRuleException("La fecha de fin debe ser futura y posterior a la de inicio");
+            throw new BusinessRuleException("The end date must be in the future and after the start date");
         }
         Auction saved = auctionRepository.save(auction);
-        activityLogRepository.log("AUCTION_CREATED", "Subasta creada: " + saved.id(), cmd.requesterId(),
+        activityLogRepository.log("AUCTION_CREATED", "Auction created: " + saved.id(), cmd.requesterId(),
                 Map.of("auctionId", saved.id().toString(), "artworkId", saved.artworkId().toString()));
         return saved;
     }

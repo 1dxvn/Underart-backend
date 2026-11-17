@@ -5,14 +5,17 @@ import com.underart.application.dto.ConfirmMediaRequest;
 import com.underart.application.dto.MediaUploadUrlRequest;
 import com.underart.application.dto.MediaUploadUrlResponse;
 import com.underart.application.dto.ReorderMediaRequest;
+import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.port.in.DeleteArtworkMediaUseCase;
 import com.underart.domain.port.in.DirectMediaUploadUseCase;
 import com.underart.domain.port.in.ListArtworkMediaUseCase;
 import com.underart.domain.port.in.ReorderArtworkMediaUseCase;
-import com.underart.domain.port.in.UploadArtworkMediaUseCase;
 import com.underart.domain.port.in.UploadArtworkMediaUseCase.UploadMediaCommand;
-import com.underart.domain.exception.BusinessRuleException;
+import com.underart.domain.port.in.UploadArtworkMediaUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@Tag(name = "Media", description = "Artwork images and videos in Cloudflare R2")
 @RequestMapping("/api/v1/artworks/{artworkId}/media")
 @RequiredArgsConstructor
 public class ArtworkMediaController {
@@ -46,6 +50,7 @@ public class ArtworkMediaController {
     private final ReorderArtworkMediaUseCase reorderUseCase;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload an image or short video (multipart file field)")
     public ResponseEntity<ArtworkMediaResponse> upload(@PathVariable UUID artworkId,
                                                        @RequestPart("file") MultipartFile file) {
         try (InputStream content = file.getInputStream()) {
@@ -53,16 +58,19 @@ public class ArtworkMediaController {
                     uploadUseCase.upload(new UploadMediaCommand(artworkId, currentUser.currentUserId(),
                             file.getContentType(), file.getSize(), content))));
         } catch (IOException e) {
-            throw new BusinessRuleException("No se pudo leer el archivo enviado");
+            throw new BusinessRuleException("Could not read the uploaded file");
         }
     }
 
     @GetMapping
+    @Operation(summary = "List artwork media; first image is the cover")
+    @SecurityRequirements
     public ResponseEntity<List<ArtworkMediaResponse>> list(@PathVariable UUID artworkId) {
         return ResponseEntity.ok(listUseCase.list(artworkId).stream().map(ArtworkMediaResponse::from).toList());
     }
 
     @PostMapping("/upload-url")
+    @Operation(summary = "Request a signed URL for direct video upload")
     public ResponseEntity<MediaUploadUrlResponse> requestUploadUrl(@PathVariable UUID artworkId,
                                                                    @Valid @RequestBody MediaUploadUrlRequest req) {
         return ResponseEntity.ok(MediaUploadUrlResponse.from(directUploadUseCase.requestUpload(
@@ -70,6 +78,7 @@ public class ArtworkMediaController {
     }
 
     @PostMapping("/{mediaId}/confirm")
+    @Operation(summary = "Confirm a direct upload")
     public ResponseEntity<ArtworkMediaResponse> confirm(@PathVariable UUID artworkId, @PathVariable UUID mediaId,
                                                         @Valid @RequestBody ConfirmMediaRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ArtworkMediaResponse.from(
@@ -77,6 +86,7 @@ public class ArtworkMediaController {
     }
 
     @PutMapping("/order")
+    @Operation(summary = "Reorder media; first image is the cover")
     public ResponseEntity<List<ArtworkMediaResponse>> reorder(@PathVariable UUID artworkId,
                                                               @Valid @RequestBody ReorderMediaRequest req) {
         return ResponseEntity.ok(reorderUseCase.reorder(artworkId, currentUser.currentUserId(), req.mediaIds())
@@ -84,6 +94,7 @@ public class ArtworkMediaController {
     }
 
     @DeleteMapping("/{mediaId}")
+    @Operation(summary = "Delete a media file")
     public ResponseEntity<Void> delete(@PathVariable UUID artworkId, @PathVariable UUID mediaId) {
         deleteUseCase.delete(artworkId, mediaId, currentUser.currentUserId());
         return ResponseEntity.noContent().build();

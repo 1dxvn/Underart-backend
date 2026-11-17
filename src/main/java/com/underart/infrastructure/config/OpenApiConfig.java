@@ -19,7 +19,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Underart API")
                         .version("v1")
-                        .description("Marketplace de subastas de arte con IA integrada"))
+                        .description("Art auction marketplace with AI assistance"))
                 .components(new Components().addSecuritySchemes(BEARER, new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER));

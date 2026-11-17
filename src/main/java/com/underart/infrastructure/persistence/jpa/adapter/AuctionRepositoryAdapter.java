@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -53,7 +52,7 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     @Override
     public PageResult<Auction> search(AuctionSearchCriteria criteria, PageQuery page) {
         return PageMapper.toResult(repository.findAll(SearchSpecifications.auctions(criteria),
-                PageMapper.toPageable(page, Sort.by(Sort.Direction.ASC, "endDate"))), AuctionMapper::toDomain);
+                PageMapper.toPageable(page, SearchSpecifications.auctionSort(criteria))), AuctionMapper::toDomain);
     }
 
     @Override
@@ -69,5 +68,10 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     @Override
     public boolean existsActiveByArtworkId(UUID artworkId) {
         return repository.existsByArtworkIdAndStatus(artworkId, AuctionStatus.ACTIVE);
+    }
+
+    @Override
+    public long countActiveByArtistId(UUID artistId) {
+        return repository.countByArtworkArtistIdAndStatus(artistId, AuctionStatus.ACTIVE);
     }
 }

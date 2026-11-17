@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthenticateUserService implements AuthenticateUserUseCase {
 
-    private static final String INVALID = "Credenciales inválidas";
+    private static final String INVALID = "Invalid credentials";
 
     private final UserRepositoryPort userRepository;
     private final PasswordHasherPort passwordHasher;

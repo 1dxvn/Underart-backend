@@ -68,7 +68,7 @@ class StripePaymentGatewayAdapterTest {
     void chargesInCentsWithIdempotencyAndReturnsApproval() {
         server.expect(requestTo("https://api.stripe.com/v1/payment_intents"))
                 .andExpect(header("Authorization", BASIC))
-                .andExpect(header("Idempotency-Key", org.hamcrest.Matchers.startsWith("order-9:")))
+                .andExpect(header("Idempotency-Key", "order-9"))
                 .andExpect(content().string(org.hamcrest.Matchers.allOf(
                         org.hamcrest.Matchers.containsString("amount=56500"),
                         org.hamcrest.Matchers.containsString("currency=usd"),
@@ -100,8 +100,7 @@ class StripePaymentGatewayAdapterTest {
                 .andRespond(withStatus(HttpStatus.PAYMENT_REQUIRED).contentType(MediaType.APPLICATION_JSON)
                         .body("{\"error\":{\"code\":\"card_declined\",\"message\":\"Your card was declined.\"}}"));
 
-        assertThatThrownBy(() -> adapter.charge("cus_1:pm_1", BigDecimal.TEN, "order-2"))
-                .isInstanceOf(PaymentFailedException.class).hasMessage("Your card was declined.");
+        assertThat(adapter.charge("cus_1:pm_1", BigDecimal.TEN, "order-2").approved()).isFalse();
     }
 
     @Test
@@ -109,10 +108,8 @@ class StripePaymentGatewayAdapterTest {
         server.expect(requestTo("https://api.stripe.com/v1/payment_intents"))
                 .andRespond(withSuccess("{\"id\":\"pi_3\",\"status\":\"requires_action\"}", MediaType.APPLICATION_JSON));
 
-        PaymentResult result = adapter.charge("cus_1:pm_1", BigDecimal.TEN, "order-3");
-
-        assertThat(result.approved()).isFalse();
-        assertThat(result.message()).contains("requires_action");
+        assertThatThrownBy(() -> adapter.charge("cus_1:pm_1", BigDecimal.TEN, "order-3"))
+                .isInstanceOf(PaymentFailedException.class).hasMessageContaining("requires_action");
     }
 
     @Test
@@ -127,4 +124,12 @@ class StripePaymentGatewayAdapterTest {
         StripePaymentGatewayAdapter withoutKey = new StripePaymentGatewayAdapter(RestClient.create(), "", "usd");
         assertThatThrownBy(withoutKey::requireSecretKey).isInstanceOf(IllegalStateException.class);
     }
+    @Test
+    void missingTransactionIdCannotBeTreatedAsPaid() {
+        server.expect(requestTo("https://api.stripe.com/v1/payment_intents"))
+                .andRespond(withSuccess("{\"status\":\"succeeded\"}", MediaType.APPLICATION_JSON));
+        assertThatThrownBy(() -> adapter.charge("cus_1:pm_1", BigDecimal.TEN, "order-5"))
+                .isInstanceOf(PaymentFailedException.class).hasMessageContaining("Unexpected payment gateway response");
+    }
+
 }

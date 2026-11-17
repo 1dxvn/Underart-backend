@@ -1,42 +1,69 @@
 package com.underart.infrastructure.security;
 
+import com.underart.domain.model.User;
+import com.underart.domain.port.out.AccessTokenPort;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.UUID;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
-public class JwtService {
+public class JwtService implements AccessTokenPort {
 
+    static final String ISSUER = "underart-backend";
+    static final String AUDIENCE = "underart-api";
     private static final int MIN_SECRET_BYTES = 32;
+    private static final String TYPE_CLAIM = "type";
+    private static final String ACCESS_TYPE = "access";
+    private static final String USER_ID_CLAIM = "userId";
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final SecretKey signingKey;
+    private final long expirationMs;
 
-    @Value("${jwt.expiration-ms:86400000}")
-    private long expirationMs;
-
-    @PostConstruct
-    void validateSecret() {
+    public JwtService(@Value("${jwt.secret}") String secret,
+                      @Value("${jwt.expiration-ms:900000}") long expirationMs) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
-            throw new IllegalStateException("JWT_SECRET debe tener al menos " + MIN_SECRET_BYTES + " caracteres");
+            throw new IllegalStateException("JWT_SECRET must contain at least " + MIN_SECRET_BYTES + " characters");
         }
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
+    }
+
+    @Override
+    public IssuedAccessToken issue(User user) {
+        return new IssuedAccessToken(generateToken(user.email(), user.id(), credentialStamp(user.passwordHash())), expirationSeconds());
+    }
+
+    public long expirationSeconds() {
+        return expirationMs / 1000;
     }
 
     public String generateToken(String email, UUID userId) {
+        return generateToken(email, userId, null);
+    }
+
+    private String generateToken(String email, UUID userId, String credentialStamp) {
+        long now = System.currentTimeMillis();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .issuer(ISSUER)
+                .audience().add(AUDIENCE).and()
                 .subject(email)
-                .claim("userId", userId.toString())
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationMs))
-                .signWith(signingKey())
+                .claim(USER_ID_CLAIM, userId.toString())
+                .claim(TYPE_CLAIM, ACCESS_TYPE)
+                .claim("credentials", credentialStamp)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + expirationMs))
+                .signWith(signingKey)
                 .compact();
     }
 
@@ -44,7 +71,7 @@ public class JwtService {
         try {
             extractAllClaims(token);
             return true;
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
@@ -54,14 +81,42 @@ public class JwtService {
     }
 
     public UUID extractUserId(String token) {
-        return UUID.fromString((String) extractAllClaims(token).get("userId"));
+        return UUID.fromString(extractAllClaims(token).get(USER_ID_CLAIM, String.class));
+    }
+
+    public boolean matchesCredentials(String token, User user) {
+        return credentialStamp(user.passwordHash()).equals(extractAllClaims(token).get("credentials", String.class));
+    }
+
+    private String credentialStamp(String passwordHash) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(signingKey);
+            return HexFormat.of().formatHex(mac.doFinal(passwordHash.getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
-    }
-
-    private SecretKey signingKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        Claims claims = Jwts.parser()
+                .verifyWith(signingKey)
+                .requireIssuer(ISSUER)
+                .requireAudience(AUDIENCE)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        if (!ACCESS_TYPE.equals(claims.get(TYPE_CLAIM, String.class))) {
+            throw new JwtException("The token is not an access token");
+        }
+        String userId = claims.get(USER_ID_CLAIM, String.class);
+        if (userId == null) {
+            throw new JwtException("Token user ID is required");
+        }
+        UUID.fromString(userId);
+        if (claims.getSubject() == null || claims.getSubject().isBlank()) {
+            throw new JwtException("Token subject is required");
+        }
+        return claims;
     }
 }

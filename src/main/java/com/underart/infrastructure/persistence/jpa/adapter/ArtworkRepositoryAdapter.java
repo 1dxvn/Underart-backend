@@ -8,10 +8,10 @@ import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.jpa.mapper.ArtworkMapper;
 import com.underart.infrastructure.persistence.jpa.repository.ArtworkJpaRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,6 +34,11 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     }
 
     @Override
+    public Optional<Artwork> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(ArtworkMapper::toDomain);
+    }
+
+    @Override
     public List<Artwork> findByArtistId(UUID artistId) {
         return repository.findByArtistId(artistId).stream().map(ArtworkMapper::toDomain).toList();
     }
@@ -46,11 +51,24 @@ public class ArtworkRepositoryAdapter implements ArtworkRepositoryPort {
     @Override
     public PageResult<Artwork> search(ArtworkSearchCriteria criteria, PageQuery page) {
         return PageMapper.toResult(repository.findAll(SearchSpecifications.artworks(criteria),
-                PageMapper.toPageable(page, Sort.by(Sort.Direction.DESC, "createdAt"))), ArtworkMapper::toDomain);
+                PageMapper.toPageable(page, SearchSpecifications.artworkSort(criteria))), ArtworkMapper::toDomain);
     }
 
     @Override
     public void deleteById(UUID id) {
         repository.deleteById(id);
+    }
+
+    @Override
+    public long countByArtistId(UUID artistId) {
+        return repository.countByArtistId(artistId);
+    }
+
+    @Override
+    public List<Artwork> findAllByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids).stream().map(ArtworkMapper::toDomain).toList();
     }
 }

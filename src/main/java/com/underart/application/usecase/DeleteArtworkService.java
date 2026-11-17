@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,17 +25,18 @@ public class DeleteArtworkService implements DeleteArtworkUseCase {
     private final ActivityLogRepositoryPort activityLogRepository;
 
     @Override
+    @Transactional
     public void delete(UUID artworkId, UUID requesterId) {
-        ArtworkOwnership.requireOwned(artworkRepository, artworkId, requesterId);
+        ArtworkOwnership.requireOwnedForUpdate(artworkRepository, artworkId, requesterId);
         if (auctionRepository.existsByArtworkId(artworkId)) {
-            throw new BusinessRuleException("No se puede borrar una obra que tiene subastas");
+            throw new BusinessRuleException("Artwork with auctions cannot be deleted");
         }
         for (ArtworkMedia media : mediaRepository.findByArtworkId(artworkId)) {
             mediaStorage.delete(media.storageKey());
             mediaRepository.deleteById(media.id());
         }
         artworkRepository.deleteById(artworkId);
-        activityLogRepository.log("ARTWORK_DELETED", "Obra eliminada: " + artworkId, requesterId,
+        activityLogRepository.log("ARTWORK_DELETED", "Artwork deleted: " + artworkId, requesterId,
                 Map.of("artworkId", artworkId.toString()));
     }
 }

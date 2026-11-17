@@ -30,7 +30,7 @@ class UploadArtworkMediaServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ArtworkMediaRepositoryPort media = mock(ArtworkMediaRepositoryPort.class);
     private final MediaStoragePort storage = mock(MediaStoragePort.class);
-    private final UploadArtworkMediaService service = new UploadArtworkMediaService(artworks, media, storage);
+    private final UploadArtworkMediaService service = new UploadArtworkMediaService(artworks, mock(ArtworkEditingPolicy.class), media, storage);
     private final UUID artistId = UUID.randomUUID();
     private UUID artworkId;
 

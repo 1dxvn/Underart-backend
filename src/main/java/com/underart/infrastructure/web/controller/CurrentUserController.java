@@ -8,22 +8,27 @@ import com.underart.application.dto.ChangePasswordRequest;
 import com.underart.application.dto.OrderResponse;
 import com.underart.application.dto.PageResponse;
 import com.underart.application.dto.PaymentMethodRequest;
+import com.underart.application.dto.SellerStatsResponse;
 import com.underart.application.dto.UpdateProfileRequest;
 import com.underart.application.dto.UserResponse;
 import com.underart.domain.model.ArtworkSearchCriteria;
 import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.port.in.ChangePasswordUseCase;
+import com.underart.domain.port.in.FavoritesUseCase;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.in.ListActivityUseCase;
 import com.underart.domain.port.in.ListArtworksUseCase;
 import com.underart.domain.port.in.ListAuctionsUseCase;
 import com.underart.domain.port.in.ListBidsUseCase;
 import com.underart.domain.port.in.ListOrdersUseCase;
+import com.underart.domain.port.in.SellerStatsUseCase;
 import com.underart.domain.port.in.UpdatePaymentMethodUseCase;
-import com.underart.domain.port.in.UpdateUserProfileUseCase;
 import com.underart.domain.port.in.UpdateUserProfileUseCase.UpdateProfileCommand;
+import com.underart.domain.port.in.UpdateUserProfileUseCase;
 import com.underart.infrastructure.security.CurrentUserProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "My account", description = "Current user profile, security, purchases, sales and statistics")
 @RequestMapping("/api/v1/users/me")
 @RequiredArgsConstructor
 public class CurrentUserController {
@@ -50,31 +56,38 @@ public class CurrentUserController {
     private final ListArtworksUseCase listArtworksUseCase;
     private final ListAuctionsUseCase listAuctionsUseCase;
     private final ListActivityUseCase listActivityUseCase;
+    private final FavoritesUseCase favoritesUseCase;
+    private final SellerStatsUseCase sellerStatsUseCase;
 
     @GetMapping
+    @Operation(summary = "Mi perfil completo")
     public ResponseEntity<UserResponse> me() {
         return ResponseEntity.ok(UserResponse.from(findUserUseCase.findById(currentUser.currentUserId())));
     }
 
     @PutMapping
+    @Operation(summary = "Update name, city and address")
     public ResponseEntity<UserResponse> update(@Valid @RequestBody UpdateProfileRequest req) {
         return ResponseEntity.ok(UserResponse.from(updateProfileUseCase.update(new UpdateProfileCommand(
                 currentUser.currentUserId(), req.username(), req.city(), req.shippingAddress()))));
     }
 
     @PutMapping("/password")
+    @Operation(summary = "Change password and revoke existing credentials")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         changePasswordUseCase.change(currentUser.currentUserId(), req.currentPassword(), req.newPassword());
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/payment-method")
+    @Operation(summary = "Register a payment method (Stripe pm_... ID)")
     public ResponseEntity<UserResponse> updatePaymentMethod(@Valid @RequestBody PaymentMethodRequest req) {
         return ResponseEntity.ok(UserResponse.from(
                 updatePaymentMethodUseCase.updatePaymentToken(currentUser.currentUserId(), req.paymentToken())));
     }
 
     @GetMapping("/bids")
+    @Operation(summary = "My bids")
     public ResponseEntity<PageResponse<BidResponse>> bids(@RequestParam(required = false) Integer page,
                                                           @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(
@@ -82,6 +95,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/orders")
+    @Operation(summary = "My purchases")
     public ResponseEntity<PageResponse<OrderResponse>> purchases(@RequestParam(required = false) Integer page,
                                                                  @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listOrdersUseCase.listPurchases(
@@ -89,6 +103,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/sales")
+    @Operation(summary = "My sales")
     public ResponseEntity<PageResponse<OrderResponse>> sales(@RequestParam(required = false) Integer page,
                                                              @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listOrdersUseCase.listSales(
@@ -96,6 +111,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/artworks")
+    @Operation(summary = "My artworks")
     public ResponseEntity<PageResponse<ArtworkResponse>> artworks(@RequestParam(required = false) Integer page,
                                                                   @RequestParam(required = false) Integer size) {
         UUID me = currentUser.currentUserId();
@@ -104,6 +120,7 @@ public class CurrentUserController {
     }
 
     @GetMapping("/auctions")
+    @Operation(summary = "My artwork auctions")
     public ResponseEntity<PageResponse<AuctionResponse>> auctions(@RequestParam(required = false) Integer page,
                                                                   @RequestParam(required = false) Integer size) {
         UUID me = currentUser.currentUserId();
@@ -111,7 +128,22 @@ public class CurrentUserController {
                 AuctionSearchCriteria.byArtist(me), PageQuery.of(page, size)), AuctionResponse::from));
     }
 
+    @GetMapping("/stats")
+    @Operation(summary = "Seller and buyer statistics")
+    public ResponseEntity<SellerStatsResponse> stats() {
+        return ResponseEntity.ok(SellerStatsResponse.from(sellerStatsUseCase.statsFor(currentUser.currentUserId())));
+    }
+
+    @GetMapping("/favorites")
+    @Operation(summary = "My favorite artworks")
+    public ResponseEntity<PageResponse<ArtworkResponse>> favorites(@RequestParam(required = false) Integer page,
+                                                                   @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(PageResponse.from(favoritesUseCase.list(currentUser.currentUserId(),
+                PageQuery.of(page, size)), ArtworkResponse::from));
+    }
+
     @GetMapping("/activity")
+    @Operation(summary = "My activity history")
     public ResponseEntity<PageResponse<ActivityLogResponse>> activity(@RequestParam(required = false) Integer page,
                                                                       @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(PageResponse.from(listActivityUseCase.listForUser(

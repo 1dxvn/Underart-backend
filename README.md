@@ -1,148 +1,86 @@
 # Underart Backend
 
-API REST de una plataforma de subastas de arte. Los artistas publican obras con imágenes y
-video, la IA sugiere un precio y etiquetas, y los compradores pujan o compran al instante.
-Cuando una subasta termina, el sistema la cierra solo y genera la orden para el ganador.
+Java 17 / Spring Boot REST API for an art auction marketplace. Each artwork represents one unique piece.
+PostgreSQL stores business data; MongoDB stores activity, AI history and notifications.
 
-## Stack
+## Run locally
 
-- Java 17, Spring Boot 3.3, Maven
-- PostgreSQL (JPA + Flyway) para el negocio y MongoDB para logs de actividad e historial de IA
-- Spring Security con JWT (sin sesiones)
-- Groq como proveedor de IA principal y OpenAI como respaldo
-- Cloudflare R2 (compatible con S3) para imágenes y video
-- Arquitectura hexagonal: `domain` (sin Spring ni Lombok), `application`, `infrastructure`
-- Docker, Render y GitHub Actions
+Requirements: Java 17 and Docker.
 
-## Ejecutar en local
-
-Requisitos: Java 17, Maven, PostgreSQL y MongoDB (por ejemplo, los contenedores `underart-pg` y `underart-mongo`).
-
-```bash
-mvn spring-boot:run
+```sh
+docker compose up -d
+./mvnw spring-boot:run
 ```
 
-El perfil `dev` trae valores por defecto (`localhost:5432/underart`, `postgres`/`postgres`,
-`localhost:27017/underart`), así que no necesitas variables de entorno. Puedes sobrescribirlos
-con las variables de `.env.example`. Spring no lee el archivo `.env` por sí solo: exporta las
-variables en tu terminal o en tu IDE.
+The default `dev` profile uses local databases and a development JWT secret. AI credentials are optional:
+artwork creation continues without suggestions when AI is unavailable. Media uploads require R2 credentials.
+The demo account is disabled unless `DEMO_SEED=true` is explicitly set in development.
 
-Flyway crea las tablas al arrancar. En `dev` se crea el usuario `demo@underart.com` / `password123`.
-En producción no hay usuario demo: regístrate con `POST /api/v1/users/register`.
+Use `.env.example` as a configuration reference. Compose reads `.env`; Java does not. Export variables
+or configure them in your IDE when running the application directly.
 
-Swagger UI: `/swagger-ui/index.html`. El botón **Authorize** acepta el JWT del login.
+- API: `http://localhost:8080/api/v1`
+- Swagger: `http://localhost:8080/swagger-ui/index.html`
+- Health: `http://localhost:8080/actuator/health`
+- Example requests: [docs/api.http](docs/api.http)
 
-## Pruebas
+## Verify
 
-```bash
-mvn clean verify
+```sh
+./mvnw clean verify
 ```
 
-Incluye pruebas unitarias de las reglas de negocio y una prueba de integración que levanta
-Postgres y Mongo reales con Testcontainers y recorre el flujo completo por HTTP. Si Docker no
-está disponible, la prueba de integración se salta sola.
+Docker is needed for integration and concurrency tests. Without Docker, those tests are skipped.
+ArchUnit verifies the layer boundaries. JaCoCo requires 80% line coverage and 70% branch coverage.
+Reports are generated in `target/site/jacoco` and `target/surefire-reports`.
 
-Con Docker Desktop en Mac, Testcontainers necesita encontrar el socket:
+## Business rules
 
-```bash
-export DOCKER_HOST=unix://$HOME/.docker/run/docker.sock
-export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
-```
+- Only the artist can manage artwork and create its auctions.
+- An artwork can have one active auction. A database constraint also enforces this under concurrency.
+- Active auctions and reserved or sold artworks cannot be edited, including their media.
+- Buyers cannot bid on or buy their own artwork.
+- The first bid can equal the base price; subsequent bids require a 5% increment, with a minimum of 1.00.
+- Bids in the last two minutes extend the deadline by two minutes.
+- Auction completion creates at most one order. Buy-now and bidding share the auction row lock.
+- A pending order reserves the artwork. Unpaid orders expire after 48 hours and release it.
+- Payments with an uncertain result remain `PROCESSING` and keep the artwork reserved.
+- Paid artwork cannot be auctioned again. Expired orders cannot be paid.
+- Orders retain artwork details, currency and the delivery address selected when payment starts.
+- Total: subtotal + 15.00 shipping + a 10% platform fee. All amounts use the configured currency.
+- Payment must precede shipping; delivery confirmation must precede a review.
 
-Usa siempre `mvn clean` antes de empaquetar: algunos IDEs escriben clases incompletas en `target/`.
+## API conventions
 
-## Endpoints
+UUID identifiers, UTC ISO-8601 dates and decimal monetary amounts. The API, validation and notifications
+use English. Authenticate with `Authorization: Bearer <accessToken>`.
 
-Todas las rutas están bajo `/api/v1` y requieren `Authorization: Bearer <token>`, salvo las públicas.
-El catálogo se puede consultar sin cuenta; pujar, comprar, crear o editar siempre exige token.
-Los listados son paginados con `?page=0&size=20` y devuelven `{items, page, size, totalItems, totalPages}`.
+List responses use `{items, page, size, totalItems, totalPages}`. Pages start at zero; maximum size is 100.
+Errors use `{status, error, message, path, requestId, timestamp, fieldErrors}`.
+`X-Request-Id` and `Retry-After` are exposed to browser clients.
 
-### Públicos
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/` (raíz) | Estado de la aplicación |
-| GET | `/actuator/health` (raíz) | Health check |
-| POST | `/users/register` | Registro |
-| POST | `/auth/login` | Login, devuelve el JWT |
-| GET | `/artworks`, `/artworks/{id}` | Catálogo y detalle de obras |
-| GET | `/artworks/{id}/media` | Imágenes y videos de una obra |
-| GET | `/auctions`, `/auctions/{id}` | Subastas y su precio actual |
-| GET | `/users/{id}` | Perfil público (sin email ni dirección) |
+Access tokens last 15 minutes. Refresh tokens rotate and are stored hashed. Changing a password
+invalidates existing access tokens and refresh tokens. Logout revokes the refresh-token family;
+its access token can remain valid until expiration.
 
-El historial de pujas (`GET /auctions/{id}/bids`) sigue requiriendo token porque muestra quién pujó.
+Order payment states: `PENDING`, `PROCESSING`, `PAID`, `FAILED`, `EXPIRED`.
+Retry an interrupted payment using the same `POST /orders/{id}/pay` endpoint. The saved attempt reuses
+its original reference and payment method. After 23 hours an unresolved attempt requires manual
+provider reconciliation; it is never silently retried with a fresh key.
 
-### Usuarios
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/users/me` | Mi perfil completo |
-| PUT | `/users/me` | Actualizar nombre, ciudad y dirección |
-| PUT | `/users/me/password` | Cambiar contraseña |
-| PUT | `/users/me/payment-method` | Registrar método de pago (id `pm_...` de Stripe, o cualquier texto en modo simulado) |
-| GET | `/users/me/artworks` | Mis obras |
-| GET | `/users/me/auctions` | Subastas de mis obras |
-| GET | `/users/me/bids` | Mis pujas |
-| GET | `/users/me/orders` | Mis compras |
-| GET | `/users/me/sales` | Mis ventas |
-| GET | `/users/me/activity` | Mi historial de actividad |
+## Deployment and design
 
-### Obras y multimedia
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/artworks` | Crear obra (la IA sugiere precio y etiquetas) |
-| GET | `/artworks?artistId=&technique=&tag=&q=` | Buscar obras |
-| GET | `/artworks/{id}` | Detalle |
-| PUT | `/artworks/{id}` | Editar (solo el autor) |
-| DELETE | `/artworks/{id}` | Borrar (solo el autor y sin subastas) |
-| POST | `/artworks/{id}/media` | Subir imagen o video corto (multipart, campo `file`) |
-| POST | `/artworks/{id}/media/upload-url` | Pedir URL firmada para subir un video grande directo a R2 |
-| POST | `/artworks/{id}/media/{mediaId}/confirm` | Confirmar una subida directa |
-| GET | `/artworks/{id}/media` | Listar archivos (el primero es la portada) |
-| PUT | `/artworks/{id}/media/order` | Reordenar archivos |
-| DELETE | `/artworks/{id}/media/{mediaId}` | Borrar un archivo |
-| POST | `/ai/valuations` | Tasación con IA sin crear la obra |
+- [Portable deployment](docs/DEPLOYMENT.md)
+- [Architecture and patterns](docs/PATTERNS.md)
+- [Contribution guide](CONTRIBUTING.md)
 
-Límites: imágenes JPEG, PNG o WEBP de hasta 10 MB; video MP4, WEBM o MOV de hasta 50 MB por
-multipart o 200 MB por subida directa; máximo 15 archivos por obra.
+The Docker image defaults to `prod`; configure database URLs, JWT secret, allowed origins and payment
+provider explicitly. Production API documentation is disabled unless `API_DOCS_ENABLED=true`.
 
-### Subastas, pujas y órdenes
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/auctions` | Crear subasta (solo el autor de la obra) |
-| GET | `/auctions?status=&type=&artworkId=&artistId=&endingBefore=` | Buscar subastas |
-| GET | `/auctions/{id}` | Detalle con precio actual, puja más alta y número de pujas |
-| DELETE | `/auctions/{id}` | Cancelar (solo el autor y sin pujas) |
-| POST | `/auctions/{id}/bids` | Pujar (`{"amount": 150}`) |
-| GET | `/auctions/{id}/bids` | Historial de pujas, la más reciente primero |
-| POST | `/auctions/{id}/buy-now` | Compra inmediata |
-| GET | `/orders/{id}` | Detalle (solo comprador o vendedor) |
-| POST | `/orders/{id}/pay` | Pagar la orden |
+## Current limits
 
-## Reglas de negocio principales
-
-- La identidad siempre sale del JWT: nadie puede pujar, comprar ni crear obras a nombre de otro.
-- No se puede pujar ni comprar la obra propia, ni pujar fuera de las fechas de la subasta.
-- Cada puja debe superar el precio base y la puja más alta. Las pujas simultáneas se serializan
-  con un bloqueo de fila sobre la subasta.
-- Una obra solo puede tener una subasta activa a la vez.
-- Una tarea programada cierra cada minuto las subastas vencidas y crea la orden del ganador.
-- Orden: subtotal + envío (15.00) + comisión del 10 % sobre el subtotal.
-- Pagos: con `PAYMENT_PROVIDER=simulated` (por defecto) un token que empiece por `tok_fail` se rechaza (402) y cualquier otro se aprueba. Con `PAYMENT_PROVIDER=stripe` se cobra con Stripe (ver la guía de despliegue).
-
-## Errores
-
-Todas las respuestas de error tienen el formato `{"status", "message", "timestamp"}`:
-400 (validación o regla de negocio), 401 (sin token o token inválido), 402 (pago rechazado),
-403 (no eres el dueño), 404, 405, 409 (conflicto), 413 (archivo grande), 503 (IA o almacenamiento no disponibles).
-
-## Despliegue
-
-Ver [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): Render, Neon (Postgres), MongoDB Atlas y Cloudflare R2.
-
-## Pendiente (deuda técnica)
-
-- Stripe está implementado y probado contra un servidor HTTP simulado, pero no contra la API real de Stripe. Falta probarlo con una clave `sk_test_`.
-- La IA no se ha verificado con claves reales de Groq y OpenAI. El modelo se configura con `GROQ_MODEL` y `OPENAI_MODEL`.
-- La subida a R2 no se ha probado contra un bucket real.
-- Sin refresh tokens ni límite de intentos de login.
-- No hay notificaciones por email (por ejemplo, al ganar una subasta).
-- El registro de IA en Mongo y la obra en Postgres no son atómicos: si falla el segundo, queda un registro huérfano.
+Activity and notifications are best effort and run after the SQL commit; they have no durable outbox.
+Rate limits are in memory, so use one API instance until a shared limiter is introduced.
+Stripe is an off-session integration: cards requiring interactive authentication need a future frontend
+payment flow. External providers are tested with doubles, not live credentials. Artwork valuation is a
+suggestion, not an appraisal or authenticity assessment.

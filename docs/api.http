@@ -1,0 +1,108 @@
+@base = http://localhost:8080/api/v1
+@artistEmail = artist@example.com
+@buyerEmail = buyer@example.com
+@password = password123
+
+### Register artist
+POST {{base}}/users/register
+Content-Type: application/json
+
+{"username":"Artist","email":"{{artistEmail}}","password":"{{password}}"}
+
+### Artist session
+# @name artistLogin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"email":"{{artistEmail}}","password":"{{password}}"}
+
+@artistToken = {{artistLogin.response.body.accessToken}}
+
+### Create artwork (AI credentials are optional)
+# @name artwork
+POST {{base}}/artworks
+Authorization: Bearer {{artistToken}}
+Content-Type: application/json
+
+{"title":"Morning light","description":"Original landscape","technique":"Oil","dimensions":"30x40 cm"}
+
+@artworkId = {{artwork.response.body.id}}
+
+### Create auction
+# @name auction
+POST {{base}}/auctions
+Authorization: Bearer {{artistToken}}
+Content-Type: application/json
+
+{"artworkId":"{{artworkId}}","type":"IMMEDIATE","basePrice":100,"immediatePurchasePrice":500,"endDate":"2030-12-31T23:59:59Z"}
+
+@auctionId = {{auction.response.body.id}}
+
+### Register buyer
+POST {{base}}/users/register
+Content-Type: application/json
+
+{"username":"Buyer","email":"{{buyerEmail}}","password":"{{password}}","city":"Bogota","shippingAddress":"100 Main Street"}
+
+### Buyer session
+# @name buyerLogin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"email":"{{buyerEmail}}","password":"{{password}}"}
+
+@buyerToken = {{buyerLogin.response.body.accessToken}}
+
+### Place bid
+POST {{base}}/auctions/{{auctionId}}/bids
+Authorization: Bearer {{buyerToken}}
+Content-Type: application/json
+
+{"amount":150}
+
+### Buy now
+# @name order
+POST {{base}}/auctions/{{auctionId}}/buy-now
+Authorization: Bearer {{buyerToken}}
+
+@orderId = {{order.response.body.id}}
+
+### Register simulated payment method (use a Stripe pm_... ID with the Stripe provider)
+PUT {{base}}/users/me/payment-method
+Authorization: Bearer {{buyerToken}}
+Content-Type: application/json
+
+{"paymentToken":"tok_visa"}
+
+### Pay (retry this request if the connection was interrupted)
+POST {{base}}/orders/{{orderId}}/pay
+Authorization: Bearer {{buyerToken}}
+
+### Ship
+POST {{base}}/orders/{{orderId}}/ship
+Authorization: Bearer {{artistToken}}
+Content-Type: application/json
+
+{"carrier":"Carrier","trackingNumber":"TRACK-123"}
+
+### Confirm delivery
+POST {{base}}/orders/{{orderId}}/confirm-delivery
+Authorization: Bearer {{buyerToken}}
+
+### Review
+POST {{base}}/orders/{{orderId}}/review
+Authorization: Bearer {{buyerToken}}
+Content-Type: application/json
+
+{"rating":5,"comment":"Excellent artwork"}
+
+### Order details and historical snapshot
+GET {{base}}/orders/{{orderId}}
+Authorization: Bearer {{buyerToken}}
+
+### Public catalog
+GET {{base}}/auctions?page=0&size=20
+
+### Buyer notifications
+GET {{base}}/users/me/notifications?unreadOnly=true
+Authorization: Bearer {{buyerToken}}

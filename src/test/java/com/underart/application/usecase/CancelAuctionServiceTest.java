@@ -59,6 +59,6 @@ class CancelAuctionServiceTest {
         when(bids.countByAuctionId(auction.id())).thenReturn(2L);
         assertThatThrownBy(() -> service.cancel(auction.id(), artistId))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessage("No se puede cancelar una subasta que ya tiene pujas");
+                .hasMessage("Auctions with bids cannot be cancelled");
     }
 }

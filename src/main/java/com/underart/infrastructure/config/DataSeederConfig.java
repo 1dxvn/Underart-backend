@@ -5,6 +5,7 @@ import com.underart.domain.port.out.UserRepositoryPort;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 @Profile("dev")
+@ConditionalOnProperty(name = "demo.seed", havingValue = "true")
 public class DataSeederConfig {
 
     @Bean
@@ -24,7 +26,6 @@ public class DataSeederConfig {
                     passwordEncoder.encode("password123"), "Bogotá", "Calle 100 #10-20",
                     null, Instant.now());
             userRepository.save(user);
-            System.out.println("Seeded demo user: demo@underart.com / password123");
         };
     }
 }

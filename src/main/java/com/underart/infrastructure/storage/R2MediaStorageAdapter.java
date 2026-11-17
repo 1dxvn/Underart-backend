@@ -13,9 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -63,7 +63,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
                     .contentType(contentType).contentLength(sizeBytes).build(),
                     RequestBody.fromInputStream(content, sizeBytes));
         } catch (SdkException e) {
-            throw new MediaStorageException("No se pudo subir el archivo", e);
+            throw new MediaStorageException("Could not upload the file", e);
         }
     }
 
@@ -72,7 +72,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
         try {
             client().deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
         } catch (SdkException e) {
-            throw new MediaStorageException("No se pudo borrar el archivo", e);
+            throw new MediaStorageException("Could not delete the file", e);
         }
     }
 
@@ -87,7 +87,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
             return new PresignedUpload(presigned.url().toString(), presigned.expiration(),
                     Map.of("Content-Type", contentType));
         } catch (SdkException e) {
-            throw new MediaStorageException("No se pudo generar la URL de subida", e);
+            throw new MediaStorageException("Could not generate the upload URL", e);
         }
     }
 
@@ -102,9 +102,9 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
             if (e.statusCode() == 404) {
                 return Optional.empty();
             }
-            throw new MediaStorageException("No se pudo consultar el archivo", e);
+            throw new MediaStorageException("Could not inspect the file", e);
         } catch (SdkException e) {
-            throw new MediaStorageException("No se pudo consultar el archivo", e);
+            throw new MediaStorageException("Could not inspect the file", e);
         }
     }
 
@@ -154,7 +154,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
         boolean configured = Stream.of(accountId, accessKeyId, secretAccessKey, bucket, publicBaseUrl)
                 .allMatch(v -> v != null && !v.isBlank());
         if (!configured) {
-            throw new MediaStorageException("El almacenamiento de archivos no está configurado (variables R2_*)");
+            throw new MediaStorageException("Media storage is not configured (R2_* variables)");
         }
     }
 

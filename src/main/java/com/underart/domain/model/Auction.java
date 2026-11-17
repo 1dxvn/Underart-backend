@@ -23,11 +23,16 @@ public record Auction(
     }
 
     public boolean hasEnded(Instant now) {
-        return now.isAfter(endDate);
+        return !now.isBefore(endDate);
     }
 
     public Auction withStatus(AuctionStatus newStatus) {
         return new Auction(id, artworkId, type, newStatus, basePrice, immediatePurchasePrice,
                 startDate, endDate);
+    }
+
+    public Auction withEndDate(Instant newEndDate) {
+        return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice,
+                startDate, newEndDate);
     }
 }

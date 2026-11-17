@@ -34,7 +34,9 @@ class BuyNowServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final AuctionClosedListenerPort listener = mock(AuctionClosedListenerPort.class);
-    private final BuyNowService service = new BuyNowService(auctions, orders, artworks, log, List.of(listener));
+    private final AuctionOutcomeNotifier notifier = mock(AuctionOutcomeNotifier.class);
+    private final BuyNowService service =
+            new BuyNowService(auctions, orders, artworks, log, List.of(listener), notifier, new OrderFactory("usd"));
     private final UUID artistId = UUID.randomUUID();
     private final UUID buyerId = UUID.randomUUID();
     private UUID artworkId;
@@ -66,13 +68,14 @@ class BuyNowServiceTest {
         verify(auctions).save(saved.capture());
         assertThat(saved.getValue().status()).isEqualTo(AuctionStatus.CLOSED);
         verify(listener).onAuctionClosed(saved.getValue());
+        verify(notifier).sold(any(), any(), any(), org.mockito.ArgumentMatchers.eq(true));
     }
 
     @Test
     void rejectsEndedAuction() {
         Auction auction = given(new BigDecimal("500"), Instant.now().minusSeconds(60));
         assertThatThrownBy(() -> service.buy(auction.id(), buyerId))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("La subasta no está en curso");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("The auction is not in progress");
         verify(orders, never()).save(any());
     }
 
@@ -80,13 +83,13 @@ class BuyNowServiceTest {
     void rejectsAuctionWithoutImmediatePrice() {
         Auction auction = given(null, Instant.now().plusSeconds(3600));
         assertThatThrownBy(() -> service.buy(auction.id(), buyerId))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("Esta subasta no tiene compra inmediata");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("This auction has no buy-now option");
     }
 
     @Test
     void rejectsBuyingOwnArtwork() {
         Auction auction = given(new BigDecimal("500"), Instant.now().plusSeconds(3600));
         assertThatThrownBy(() -> service.buy(auction.id(), artistId))
-                .isInstanceOf(BusinessRuleException.class).hasMessage("No puedes comprar tu propia obra");
+                .isInstanceOf(BusinessRuleException.class).hasMessage("You cannot buy your own artwork");
     }
 }
