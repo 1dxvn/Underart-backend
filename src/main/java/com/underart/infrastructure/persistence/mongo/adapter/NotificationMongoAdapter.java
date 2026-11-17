@@ -1,13 +1,12 @@
 package com.underart.infrastructure.persistence.mongo.adapter;
 
-import static org.springframework.data.mongodb.core.query.Criteria.where;
-
 import com.underart.domain.model.Notification;
 import com.underart.domain.model.NotificationType;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PageResult;
 import com.underart.domain.port.out.NotificationRepositoryPort;
 import com.underart.domain.port.out.NotificationSenderPort;
+import com.underart.infrastructure.persistence.AfterCommit;
 import com.underart.infrastructure.persistence.mongo.document.NotificationDocument;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +18,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
+import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 @Slf4j
 @Component
@@ -29,10 +29,14 @@ public class NotificationMongoAdapter implements NotificationSenderPort, Notific
 
     @Override
     public void send(Notification notification) {
+        AfterCommit.run(() -> persist(notification));
+    }
+
+    private void persist(Notification notification) {
         try {
             mongo.insert(toDocument(notification));
         } catch (RuntimeException e) {
-            log.warn("No se pudo guardar la notificación {} para {}", notification.type(), notification.userId(), e);
+            log.warn("Could not save notification {} for {}", notification.type(), notification.userId(), e);
         }
     }
 

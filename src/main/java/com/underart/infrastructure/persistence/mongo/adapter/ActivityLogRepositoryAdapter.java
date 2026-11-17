@@ -4,15 +4,18 @@ import com.underart.domain.model.ActivityLog;
 import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.PageResult;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
+import com.underart.infrastructure.persistence.AfterCommit;
 import com.underart.infrastructure.persistence.PageMapper;
 import com.underart.infrastructure.persistence.mongo.document.ActivityLogDocument;
 import com.underart.infrastructure.persistence.mongo.repository.ActivityLogMongoRepository;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class ActivityLogRepositoryAdapter implements ActivityLogRepositoryPort {
 
@@ -24,8 +27,16 @@ public class ActivityLogRepositoryAdapter implements ActivityLogRepositoryPort {
 
     @Override
     public void log(String eventType, String description, UUID userId, Map<String, Object> metadata) {
-        repository.save(new ActivityLogDocument(null, eventType, description,
-                userId != null ? userId.toString() : null, metadata, Instant.now()));
+        AfterCommit.run(() -> record(eventType, description, userId, metadata));
+    }
+
+    private void record(String eventType, String description, UUID userId, Map<String, Object> metadata) {
+        try {
+            repository.save(new ActivityLogDocument(null, eventType, description,
+                    userId != null ? userId.toString() : null, metadata, Instant.now()));
+        } catch (RuntimeException e) {
+            log.warn("Could not record activity {} for {}", eventType, userId, e);
+        }
     }
 
     @Override
