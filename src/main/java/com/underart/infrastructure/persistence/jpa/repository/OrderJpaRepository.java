@@ -19,7 +19,8 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, UUID> {
     Page<OrderEntity> findByWinnerId(UUID winnerId, Pageable pageable);
 
     @Query("select o from OrderEntity o where o.auction.artwork.artist.id = :artistId"
-            + " and (not o.checkout or o.paymentStatus = com.underart.domain.model.PaymentStatus.PAID)")
+            + " and (not o.checkout or o.paymentStatus in (com.underart.domain.model.PaymentStatus.PAID, "
+            + "com.underart.domain.model.PaymentStatus.COORDINATING, com.underart.domain.model.PaymentStatus.REPORTED))")
     Page<OrderEntity> findSales(@Param("artistId") UUID artistId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -29,18 +30,21 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, UUID> {
     @Query("select count(o) > 0 from OrderEntity o where o.auction.artwork.id = :artworkId "
             + "and ((not o.checkout and o.paymentStatus <> com.underart.domain.model.PaymentStatus.EXPIRED)"
             + " or o.paymentStatus in (com.underart.domain.model.PaymentStatus.PROCESSING,"
-            + " com.underart.domain.model.PaymentStatus.PAID))")
+            + " com.underart.domain.model.PaymentStatus.PAID, com.underart.domain.model.PaymentStatus.COORDINATING,"
+            + " com.underart.domain.model.PaymentStatus.REPORTED))")
     boolean reservesArtwork(@Param("artworkId") UUID artworkId);
 
     @Query("select o.id from OrderEntity o where o.paymentDueAt <= :now and o.paymentStatus in "
-            + "(com.underart.domain.model.PaymentStatus.PENDING, com.underart.domain.model.PaymentStatus.FAILED)")
+            + "(com.underart.domain.model.PaymentStatus.PENDING, com.underart.domain.model.PaymentStatus.FAILED,"
+            + " com.underart.domain.model.PaymentStatus.COORDINATING)")
     List<UUID> findUnpaidExpiredIds(@Param("now") Instant now);
 
     @Query("select o.auction.id from OrderEntity o where o.id = :id and o.checkout")
     Optional<UUID> findCheckoutAuctionId(@Param("id") UUID id);
 
     @Query("select count(o) > 0 from OrderEntity o where o.auction.id = :id and o.checkout"
-            + " and o.paymentStatus = com.underart.domain.model.PaymentStatus.PROCESSING")
+            + " and o.paymentStatus in (com.underart.domain.model.PaymentStatus.PROCESSING,"
+            + " com.underart.domain.model.PaymentStatus.COORDINATING, com.underart.domain.model.PaymentStatus.REPORTED)")
     boolean hasProcessingCheckout(@Param("id") UUID id);
 
     @Modifying(flushAutomatically = true)

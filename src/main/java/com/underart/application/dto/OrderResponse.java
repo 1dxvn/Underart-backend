@@ -26,11 +26,13 @@ public record OrderResponse(
         Instant paymentDueAt,
         PurchaseSnapshot snapshot,
         String transactionId,
-        boolean checkout) {
+        boolean checkout,
+        boolean externalPayment) {
 
     public static OrderResponse from(Order o) {
         return new OrderResponse(o.id(), o.auctionId(), o.winnerId(), o.subtotal(), o.shippingCost(),
                 o.platformFee(), o.totalPaid(), o.paymentStatus(), o.shippingStatus(), o.carrier(),
-                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt(), o.paymentDueAt(), o.snapshot(), o.payment().transactionId(), o.checkout());
+                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt(), o.paymentDueAt(), o.snapshot(), o.payment().transactionId(), o.checkout(),
+                o.hasExternalPayment());
     }
 }

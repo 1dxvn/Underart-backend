@@ -9,5 +9,7 @@ public enum NotificationType {
     PAYMENT_FAILED,
     ORDER_SHIPPED,
     ORDER_DELIVERED,
+    ORDER_MESSAGE,
+    EXTERNAL_PAYMENT,
     NEW_REVIEW
 }

@@ -64,7 +64,8 @@ public class PaymentTransactions {
         }
         if (!order.checkout()) throw new BusinessRuleException("This is not a checkout");
         if (order.paymentStatus() == PaymentStatus.EXPIRED) return order;
-        if (order.paymentStatus() != PaymentStatus.PENDING && order.paymentStatus() != PaymentStatus.FAILED) {
+        if (order.paymentStatus() != PaymentStatus.PENDING && order.paymentStatus() != PaymentStatus.FAILED
+                && order.paymentStatus() != PaymentStatus.COORDINATING) {
             throw new BusinessRuleException("A checkout with a confirmed or in-progress payment cannot be cancelled");
         }
         return orders.save(order.withPaymentStatus(PaymentStatus.EXPIRED));
@@ -73,7 +74,8 @@ public class PaymentTransactions {
     @Transactional
     public void expire(UUID orderId) {
         Order order = locked(orderId);
-        if ((order.paymentStatus() == PaymentStatus.PENDING || order.paymentStatus() == PaymentStatus.FAILED)
+        if ((order.paymentStatus() == PaymentStatus.PENDING || order.paymentStatus() == PaymentStatus.FAILED
+                || order.paymentStatus() == PaymentStatus.COORDINATING)
                 && !Instant.now().isBefore(order.paymentDueAt())) {
             orders.save(order.withPaymentStatus(PaymentStatus.EXPIRED));
         }

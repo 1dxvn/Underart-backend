@@ -73,7 +73,8 @@ public record Order(
     }
 
     public Order beginPayment(User buyer, Instant now, String paymentToken) {
-        if (paymentStatus == PaymentStatus.PAID || paymentStatus == PaymentStatus.EXPIRED) {
+        if (paymentStatus == PaymentStatus.PAID || paymentStatus == PaymentStatus.EXPIRED
+                || paymentStatus == PaymentStatus.COORDINATING || paymentStatus == PaymentStatus.REPORTED) {
             throw new BusinessRuleException("This order cannot be paid");
         }
         if (paymentStatus == PaymentStatus.PROCESSING) {
@@ -95,6 +96,31 @@ public record Order(
                 PaymentStatus.PROCESSING, shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt,
                 createdAt, paymentDueAt, snapshot == null ? null : snapshot.withDelivery(buyer),
                 new PaymentDetails("order-" + id + "-" + UUID.randomUUID(), paymentToken, null, now), checkout);
+    }
+
+    public Order coordinateExternalPayment(Instant now) {
+        if ((paymentStatus != PaymentStatus.PENDING && paymentStatus != PaymentStatus.FAILED)
+                || !now.isBefore(paymentDueAt)) {
+            throw new BusinessRuleException("El pedido ya no permite iniciar un acuerdo de pago.");
+        }
+        return withPaymentStatus(PaymentStatus.COORDINATING);
+    }
+
+    public Order reportExternalPayment(User buyer, Instant now) {
+        if (paymentStatus != PaymentStatus.COORDINATING || !now.isBefore(paymentDueAt)) {
+            throw new BusinessRuleException("La reserva del pedido ya no está disponible.");
+        }
+        if (buyer.shippingAddress() == null || buyer.shippingAddress().isBlank()) {
+            throw new BusinessRuleException("Ingresa la dirección de entrega antes de reportar el pago.");
+        }
+        return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid,
+                PaymentStatus.REPORTED, shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt,
+                createdAt, paymentDueAt, snapshot == null ? null : snapshot.withDelivery(buyer),
+                new PaymentDetails("external-" + id, null, null, now), checkout);
+    }
+
+    public boolean hasExternalPayment() {
+        return payment.reference() != null && payment.reference().startsWith("external-");
     }
 
     public Order completePayment(boolean approved, String transactionId) {

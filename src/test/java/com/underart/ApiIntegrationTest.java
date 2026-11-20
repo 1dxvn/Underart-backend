@@ -226,6 +226,49 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void buyerAndArtistCoordinateExternalPaymentOnAPrivateOrder() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String other = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtworkWithImage(artist, "Obra con chat");
+        String auction = read(call(post("/api/v1/auctions"), artist, auctionPayload(artwork), 201), "$.id");
+        String orderId = read(call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201), "$.id");
+        String competitor = read(call(post("/api/v1/auctions/" + auction + "/buy-now"), other, null, 201), "$.id");
+        String order = "/api/v1/orders/" + orderId;
+        String external = order + "/external-payment";
+        String message = """
+                {"message":"Coordinemos el pago por aquí."}
+                """;
+        call(get(order + "/messages"), other, null, 403);
+        call(post(order + "/messages"), other, message, 403);
+        call(post(order + "/messages"), buyer, message, 400);
+        assertThat(this.<String>read(call(post(external + "/start"), buyer, null, 200), "$.paymentStatus"))
+                .isEqualTo("COORDINATING");
+        call(post("/api/v1/orders/" + competitor + "/external-payment/start"), other, null, 400);
+        assertThat(this.<String>read(call(get("/api/v1/users/me/sales"), artist, null, 200), "$.items[0].id"))
+                .isEqualTo(orderId);
+        String messageId = read(call(post(order + "/messages"), buyer, message, 200), "$.id");
+        assertThat(this.<String>read(call(get(order + "/messages"), artist, null, 200), "$[0].message"))
+                .isEqualTo("Coordinemos el pago por aquí.");
+        assertThat(body(call(get(order + "/messages").param("after", messageId), buyer, null, 200))).isEqualTo("[]");
+        assertThat(this.<String>read(call(post(external + "/report"), buyer, null, 200), "$.paymentStatus"))
+                .isEqualTo("REPORTED");
+        String shipping = """
+                {"carrier":"Mensajería","trackingNumber":"TRACK-CHAT"}
+                """;
+        String received = """
+                {"received":true}
+                """;
+        call(post(order + "/ship"), artist, shipping, 400);
+        call(post(external + "/review"), buyer, received, 403);
+        var confirmation = call(post(external + "/review"), artist, received, 200);
+        assertThat(this.<String>read(confirmation, "$.paymentStatus")).isEqualTo("PAID");
+        assertThat(this.<Boolean>read(confirmation, "$.externalPayment")).isTrue();
+        call(post(external + "/review"), artist, received, 200);
+        call(post(order + "/ship"), artist, shipping, 200);
+    }
+
+    @Test
     void unpaidCheckoutsExpireWithoutClosingTheAuction() throws Exception {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
         String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
@@ -654,7 +697,11 @@ class ApiIntegrationTest {
     }
 
     private String registerAndLogin(String email) throws Exception {
-        call(post("/api/v1/users/register/code"), null, "{\"email\":\"" + email + "\"}", 204);
+        String clientAddress = "198.18." + ((email.hashCode() >>> 8) & 255) + "." + (email.hashCode() & 255);
+        call(post("/api/v1/users/register/code").with(request -> {
+            request.setRemoteAddr(clientAddress);
+            return request;
+        }), null, "{\"email\":\"" + email + "\"}", 204);
         call(post("/api/v1/users/register"), null, registration(email, verificationCodes.get(email)), 201);
         String session = body(call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200));
