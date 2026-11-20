@@ -349,6 +349,8 @@ class ApiIntegrationTest {
         String bids = "/api/v1/auctions/" + auctionId + "/bids";
         call(post(bids), artistToken, "{\"amount\":150}", 400);
         call(post(bids), buyerToken, "{\"amount\":150}", 201);
+        call(put("/api/v1/auctions/" + auctionId), artistToken,
+                "{\"basePrice\":120,\"endDate\":\"" + Instant.now().plusSeconds(7200) + "\"}", 400);
         call(post(bids), thirdToken, "{\"amount\":140}", 400);
         call(post(bids), thirdToken, "{\"amount\":-5}", 400);
         call(post(bids), thirdToken, "{\"amount\":200}", 201);
@@ -622,6 +624,12 @@ class ApiIntegrationTest {
         org.mockito.Mockito.verify(storage).readPrefix(startsWith("artworks/" + artwork + "/"), eq(2_900_001));
 
         String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
+        String changes = "{\"basePrice\":125,\"immediatePurchasePrice\":510,\"endDate\":\""
+                + Instant.now().plusSeconds(7200) + "\"}";
+        call(put("/api/v1/auctions/" + auction), buyer, changes, 403);
+        call(put("/api/v1/auctions/" + auction), artist, changes, 204);
+        assertThat(this.<Number>read(call(get("/api/v1/auctions/" + auction), null, null, 200),
+                "$.auction.basePrice").intValue()).isEqualTo(125);
         call(delete("/api/v1/auctions/" + auction), buyer, null, 403);
         call(delete("/api/v1/auctions/" + auction), artist, null, 204);
         assertThat(total(call(get("/api/v1/auctions?artworkId=" + artwork), null, null, 200))).isZero();

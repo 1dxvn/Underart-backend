@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public class AuctionBuilder {
 
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final AuctionStatus status = AuctionStatus.ACTIVE;
     private UUID artworkId;
     private AuctionType type = AuctionType.SIMPLE;
@@ -21,6 +21,14 @@ public class AuctionBuilder {
     private BigDecimal floorPrice;
     private Instant startDate;
     private Instant endDate;
+
+    public AuctionBuilder() {
+        this(UUID.randomUUID());
+    }
+
+    public AuctionBuilder(UUID id) {
+        this.id = id;
+    }
 
     public AuctionBuilder withArtwork(UUID artworkId) {
         this.artworkId = artworkId;

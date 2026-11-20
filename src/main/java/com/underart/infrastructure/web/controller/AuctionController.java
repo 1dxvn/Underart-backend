@@ -7,6 +7,11 @@ import com.underart.application.dto.PageResponse;
 import com.underart.application.dto.OrderResponse;
 import com.underart.domain.port.in.AcceptAuctionBidUseCase;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Positive;
+import com.underart.application.usecase.EditAuctionService;
+import org.springframework.web.bind.annotation.PutMapping;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.AuctionSortField;
@@ -57,6 +62,7 @@ public class AuctionController {
     private final CreateAuctionUseCase createAuctionUseCase;
     private final FindAuctionUseCase findAuctionUseCase;
     private final CancelAuctionUseCase cancelAuctionUseCase;
+    private final EditAuctionService editAuction;
     private final AcceptAuctionBidUseCase acceptAuctionBidUseCase;
 
     @GetMapping
@@ -104,6 +110,19 @@ public class AuctionController {
     }
 
     public record AcceptBidRequest(@NotNull UUID bidId) {}
+
+    public record EditAuctionRequest(
+            @NotNull @Positive @Digits(integer = 12, fraction = 2) BigDecimal basePrice,
+            @Positive @Digits(integer = 12, fraction = 2) BigDecimal immediatePurchasePrice,
+            @Positive @Digits(integer = 12, fraction = 2) BigDecimal floorPrice,
+            @NotNull @Future Instant endDate) {}
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> edit(@PathVariable UUID id, @Valid @RequestBody EditAuctionRequest request) {
+        editAuction.edit(id, currentUser.currentUserId(), request.basePrice(), request.immediatePurchasePrice(),
+                request.floorPrice(), request.endDate());
+        return ResponseEntity.noContent().build();
+    }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Cancel an active auction without bids (artist only)")
