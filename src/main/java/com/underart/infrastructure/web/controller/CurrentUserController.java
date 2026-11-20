@@ -33,6 +33,11 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import com.underart.application.usecase.UpdateAvatarService;
+import java.io.IOException;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,11 +70,21 @@ public class CurrentUserController {
         return ResponseEntity.ok(UserResponse.from(findUserUseCase.findById(currentUser.currentUserId())));
     }
 
+    private final UpdateAvatarService avatars;
+
+    @PutMapping(path = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserResponse> avatar(@RequestPart("file") MultipartFile file) throws IOException {
+        try (var content = file.getInputStream()) {
+            return ResponseEntity.ok(UserResponse.from(avatars.update(currentUser.currentUserId(),
+                    file.getContentType(), file.getSize(), content)));
+        }
+    }
+
     @PutMapping
     @Operation(summary = "Update name, city and address")
     public ResponseEntity<UserResponse> update(@Valid @RequestBody UpdateProfileRequest req) {
         return ResponseEntity.ok(UserResponse.from(updateProfileUseCase.update(new UpdateProfileCommand(
-                currentUser.currentUserId(), req.username(), req.city(), req.shippingAddress()))));
+                currentUser.currentUserId(), req.username(), req.city(), req.shippingAddress(), req.bio()))));
     }
 
     @PutMapping("/password")

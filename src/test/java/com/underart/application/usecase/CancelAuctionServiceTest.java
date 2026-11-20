@@ -28,7 +28,8 @@ class CancelAuctionServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final BidRepositoryPort bids = mock(BidRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final CancelAuctionService service = new CancelAuctionService(auctions, artworks, bids, log);
+    private final CancelAuctionService service = new CancelAuctionService(auctions, artworks, bids, log,
+            mock(com.underart.domain.port.out.OrderRepositoryPort.class));
     private final UUID artistId = UUID.randomUUID();
     private Auction auction;
 

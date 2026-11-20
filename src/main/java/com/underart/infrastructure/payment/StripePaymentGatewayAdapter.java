@@ -64,13 +64,18 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
 
     @Override
     public PaymentResult charge(String paymentToken, BigDecimal amount, String reference) {
+        return charge(paymentToken, amount, reference, currency);
+    }
+
+    @Override
+    public PaymentResult charge(String paymentToken, BigDecimal amount, String reference, String saleCurrency) {
         String[] parts = paymentToken.split(TOKEN_SEPARATOR, 2);
         if (parts.length != 2) {
             throw new PaymentFailedException("Invalid stored payment method. Register it again");
         }
         MultiValueMap<String, String> intent = new LinkedMultiValueMap<>();
         intent.add("amount", String.valueOf(amount.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact()));
-        intent.add("currency", currency);
+        intent.add("currency", saleCurrency);
         intent.add("customer", parts[0]);
         intent.add("payment_method", parts[1]);
         intent.add("payment_method_types[]", "card");
@@ -107,7 +112,7 @@ public class StripePaymentGatewayAdapter implements PaymentGatewayPort {
                             log.warn("Stripe rejected {} ({}): {}", path, response.getStatusCode().value(),
                                     body.path("error").path("code").asText());
                             if (path.equals("/payment_intents") && response.getStatusCode().value() == 402
-                                    && body.path("error").path("code").asText().equals("card_declined")) {
+                                    && java.util.Set.of("card_declined", "authentication_required").contains(body.path("error").path("code").asText())) {
                                 return mapper.createObjectNode().put("status", "requires_payment_method");
                             }
                             throw new PaymentFailedException(message);

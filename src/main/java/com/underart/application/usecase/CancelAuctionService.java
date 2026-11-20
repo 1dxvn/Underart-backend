@@ -9,6 +9,7 @@ import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
+import com.underart.domain.port.out.OrderRepositoryPort;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class CancelAuctionService implements CancelAuctionUseCase {
     private final ArtworkRepositoryPort artworkRepository;
     private final BidRepositoryPort bidRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
+    private final OrderRepositoryPort orders;
 
     @Override
     @Transactional
@@ -33,10 +35,14 @@ public class CancelAuctionService implements CancelAuctionUseCase {
         if (!auction.isActive()) {
             throw new BusinessRuleException("Only active auctions can be cancelled");
         }
+        if (orders.hasProcessingCheckout(auctionId)) {
+            throw new BusinessRuleException("A buyer is completing a payment");
+        }
         if (bidRepository.countByAuctionId(auctionId) > 0) {
             throw new BusinessRuleException("Auctions with bids cannot be cancelled");
         }
         auctionRepository.save(auction.withStatus(AuctionStatus.CANCELLED));
+        orders.expireOpenCheckouts(auctionId);
         activityLogRepository.log("AUCTION_CANCELLED", "Auction cancelled: " + auctionId, requesterId,
                 Map.of("auctionId", auctionId.toString()));
     }

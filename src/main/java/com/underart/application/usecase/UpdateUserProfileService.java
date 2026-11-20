@@ -20,7 +20,8 @@ public class UpdateUserProfileService implements UpdateUserProfileUseCase {
         User user = userRepository.findByIdForUpdate(cmd.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         User updated = new User(user.id(), cmd.username().trim(), user.email(), user.passwordHash(),
-                cmd.city(), cmd.shippingAddress(), user.paymentToken(), user.createdAt());
+                cmd.city(), cmd.shippingAddress(), user.paymentToken(), user.createdAt(),
+                cmd.bio() == null ? user.bio() : cmd.bio().strip(), user.avatarUrl(), user.avatarKey());
         return userRepository.save(updated);
     }
 }

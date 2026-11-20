@@ -16,7 +16,7 @@ public final class OrderMapper {
                 e.getSubtotal(), e.getShippingCost(), e.getPlatformFee(), e.getTotalPaid(),
                 e.getPaymentStatus(), e.getShippingStatus(), e.getCarrier(), e.getTrackingNumber(), e.getShippedAt(),
                 e.getDeliveredAt(), e.getCreatedAt(), e.getPaymentDueAt(), e.getSnapshot(),
-                new PaymentDetails(e.getPaymentReference(), e.getPaymentMethod(), e.getTransactionId(), e.getPaymentStartedAt()));
+                new PaymentDetails(e.getPaymentReference(), e.getPaymentMethod(), e.getTransactionId(), e.getPaymentStartedAt()), e.isCheckout());
     }
 
     public static OrderEntity toEntity(Order o) {
@@ -34,6 +34,7 @@ public final class OrderMapper {
                 .trackingNumber(o.trackingNumber())
                 .shippedAt(o.shippedAt())
                 .deliveredAt(o.deliveredAt())
+                .checkout(o.checkout())
                 .paymentDueAt(o.paymentDueAt())
                 .snapshot(o.snapshot())
                 .paymentReference(o.payment().reference())

@@ -22,6 +22,8 @@ public interface BidRepositoryPort {
 
     Optional<Bid> findHighestBid(UUID auctionId);
 
+    boolean existsByAuctionIdAndBuyerId(UUID auctionId, UUID buyerId);
+
     long countByAuctionId(UUID auctionId);
 
     Map<UUID, BidStats> statsByAuctionIds(Collection<UUID> auctionIds);

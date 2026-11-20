@@ -39,7 +39,7 @@ public class ChangePasswordService implements ChangePasswordUseCase {
         }
         userRepository.save(new User(user.id(), user.username(), user.email(),
                 passwordHasher.hash(newPassword), user.city(), user.shippingAddress(),
-                user.paymentToken(), user.createdAt()));
+                user.paymentToken(), user.createdAt(), user.bio(), user.avatarUrl(), user.avatarKey()));
         refreshTokens.revokeAllForUser(userId, Instant.now());
         activityLogRepository.log("PASSWORD_CHANGED", "Password updated; refresh sessions revoked", userId, Map.of());
     }

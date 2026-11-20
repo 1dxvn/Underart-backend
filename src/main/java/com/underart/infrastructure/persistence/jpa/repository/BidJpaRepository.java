@@ -15,11 +15,13 @@ public interface BidJpaRepository extends JpaRepository<BidEntity, UUID> {
 
     List<BidEntity> findByAuctionIdOrderByBidTimeDesc(UUID auctionId);
 
-    Optional<BidEntity> findFirstByAuctionIdOrderByAmountDesc(UUID auctionId);
+    Optional<BidEntity> findFirstByAuctionIdOrderByAmountDescBidTimeAscIdAsc(UUID auctionId);
 
     Page<BidEntity> findByAuctionId(UUID auctionId, Pageable pageable);
 
     Page<BidEntity> findByBuyerId(UUID buyerId, Pageable pageable);
+
+    boolean existsByAuctionIdAndBuyerId(UUID auctionId, UUID buyerId);
 
     long countByAuctionId(UUID auctionId);
 

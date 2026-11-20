@@ -67,6 +67,9 @@ public class OrderEntity {
 
     private Instant paymentDueAt;
 
+    @Column(nullable = false)
+    private boolean checkout;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private PurchaseSnapshot snapshot;

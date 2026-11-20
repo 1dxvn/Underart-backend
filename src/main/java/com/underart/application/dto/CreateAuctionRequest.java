@@ -1,6 +1,7 @@
 package com.underart.application.dto;
 
 import com.underart.domain.model.AuctionType;
+import com.underart.domain.model.AuctionCurrency;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
@@ -15,5 +16,7 @@ public record CreateAuctionRequest(
     @NotNull @Positive @Digits(integer = 12, fraction = 2) BigDecimal basePrice,
     @Positive @Digits(integer = 12, fraction = 2) BigDecimal immediatePurchasePrice,
     Instant startDate,
-    @NotNull @Future Instant endDate
+    @NotNull @Future Instant endDate,
+    AuctionCurrency currency,
+    @Positive @Digits(integer = 12, fraction = 2) BigDecimal floorPrice
 ) {}

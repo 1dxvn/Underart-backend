@@ -2,12 +2,20 @@
 @artistEmail = artist@example.com
 @buyerEmail = buyer@example.com
 @password = password123
+@artistCode = REPLACE_FROM_INBOX
+@buyerCode = REPLACE_FROM_INBOX
+
+### Request artist verification code
+POST {{base}}/users/register/code
+Content-Type: application/json
+
+{"email":"{{artistEmail}}"}
 
 ### Register artist
 POST {{base}}/users/register
 Content-Type: application/json
 
-{"username":"Artist","email":"{{artistEmail}}","password":"{{password}}"}
+{"username":"Artist","email":"{{artistEmail}}","password":"{{password}}","verificationCode":"{{artistCode}}"}
 
 ### Artist session
 # @name artistLogin
@@ -34,15 +42,21 @@ POST {{base}}/auctions
 Authorization: Bearer {{artistToken}}
 Content-Type: application/json
 
-{"artworkId":"{{artworkId}}","type":"IMMEDIATE","basePrice":100,"immediatePurchasePrice":500,"endDate":"2030-12-31T23:59:59Z"}
+{"artworkId":"{{artworkId}}","type":"IMMEDIATE","currency":"USD","basePrice":100,"immediatePurchasePrice":500,"endDate":"2030-12-31T23:59:59Z"}
 
 @auctionId = {{auction.response.body.id}}
+
+### Request buyer verification code
+POST {{base}}/users/register/code
+Content-Type: application/json
+
+{"email":"{{buyerEmail}}"}
 
 ### Register buyer
 POST {{base}}/users/register
 Content-Type: application/json
 
-{"username":"Buyer","email":"{{buyerEmail}}","password":"{{password}}","city":"Bogota","shippingAddress":"100 Main Street"}
+{"username":"Buyer","email":"{{buyerEmail}}","password":"{{password}}","city":"Bogota","shippingAddress":"100 Main Street","verificationCode":"{{buyerCode}}"}
 
 ### Buyer session
 # @name buyerLogin
@@ -54,13 +68,21 @@ Content-Type: application/json
 @buyerToken = {{buyerLogin.response.body.accessToken}}
 
 ### Place bid
+# @name bid
 POST {{base}}/auctions/{{auctionId}}/bids
 Authorization: Bearer {{buyerToken}}
 Content-Type: application/json
 
 {"amount":150}
 
-### Buy now
+### Sell early to the leading bidder (alternative to buy-now)
+POST {{base}}/auctions/{{auctionId}}/accept-bid
+Authorization: Bearer {{artistToken}}
+Content-Type: application/json
+
+{"bidId":"{{bid.response.body.id}}"}
+
+### Buy now or accept the current Dutch price
 # @name order
 POST {{base}}/auctions/{{auctionId}}/buy-now
 Authorization: Bearer {{buyerToken}}

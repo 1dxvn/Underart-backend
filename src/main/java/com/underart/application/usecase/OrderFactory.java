@@ -1,8 +1,10 @@
 package com.underart.application.usecase;
 
 import com.underart.domain.model.Artwork;
+import com.underart.domain.model.Auction;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PurchaseSnapshot;
+import com.underart.domain.model.ShippingEstimate;
 import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.UUID;
@@ -21,7 +23,8 @@ public class OrderFactory {
         this.currency = currency.toLowerCase(Locale.ROOT);
     }
 
-    public Order create(UUID auctionId, UUID buyerId, BigDecimal subtotal, Artwork artwork) {
-        return Order.pending(auctionId, buyerId, subtotal).withSnapshot(PurchaseSnapshot.of(artwork, currency));
+    public Order create(Auction auction, UUID buyerId, BigDecimal subtotal, Artwork artwork) {
+        String saleCurrency = auction.currency() == null ? currency : auction.currency().name().toLowerCase(Locale.ROOT);
+        return Order.pending(auction.id(), buyerId, subtotal, ShippingEstimate.forWeight(saleCurrency, artwork.weightKg())).withSnapshot(PurchaseSnapshot.of(artwork, saleCurrency));
     }
 }

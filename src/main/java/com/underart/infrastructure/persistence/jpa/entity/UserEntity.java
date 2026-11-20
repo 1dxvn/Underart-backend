@@ -35,6 +35,14 @@ public class UserEntity {
 
     private String paymentToken;
 
+    @Column(length = 500)
+    private String bio;
+
+    @Column(length = 2048)
+    private String avatarUrl;
+
+    private String avatarKey;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

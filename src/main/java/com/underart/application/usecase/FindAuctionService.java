@@ -2,8 +2,8 @@ package com.underart.application.usecase;
 
 import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionType;
 import com.underart.domain.model.Bid;
-import com.underart.domain.model.BidIncrementPolicy;
 import com.underart.domain.port.in.FindAuctionUseCase;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.BidRepositoryPort;
@@ -23,8 +23,9 @@ public class FindAuctionService implements FindAuctionUseCase {
     public AuctionDetails findById(UUID id) {
         Auction auction = auctionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Auction not found: " + id));
-        Bid highest = bidRepository.findHighestBid(id).orElse(null);
+        Bid highest = auction.hasSealedBids() ? null : bidRepository.findHighestBid(id).orElse(null);
         return new AuctionDetails(summaryAssembler.summarize(auction), highest,
-                BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest != null ? highest.amount() : null));
+                auction.type() == AuctionType.DUTCH ? null
+                        : auction.minimumBid(highest != null ? highest.amount() : null));
     }
 }

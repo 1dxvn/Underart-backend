@@ -8,6 +8,10 @@ public interface PaymentGatewayPort {
 
     PaymentResult charge(String paymentToken, BigDecimal amount, String reference);
 
+    default PaymentResult charge(String paymentToken, BigDecimal amount, String reference, String currency) {
+        return charge(paymentToken, amount, reference);
+    }
+
     record PaymentResult(boolean approved, String transactionId, String message) {
     }
 }

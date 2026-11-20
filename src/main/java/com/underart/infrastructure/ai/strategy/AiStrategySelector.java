@@ -2,6 +2,7 @@ package com.underart.infrastructure.ai.strategy;
 
 import com.underart.domain.exception.AiProviderException;
 import com.underart.domain.model.AiResult;
+import com.underart.domain.model.ArtworkDraft;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.AiProviderPort;
 import java.util.List;
@@ -30,6 +31,11 @@ public class AiStrategySelector implements AiProviderPort {
     @Override
     public AiResult valuateArtwork(String title, String technique, String dimensions) {
         return execute(p -> p.valuateArtwork(title, technique, dimensions));
+    }
+
+    @Override
+    public ArtworkDraft suggestArtwork(String title, String notes, String technique, String dimensions, String currency) {
+        return execute(p -> p.suggestArtwork(title, notes, technique, dimensions, currency));
     }
 
     @Override
