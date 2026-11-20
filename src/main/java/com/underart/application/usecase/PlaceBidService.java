@@ -83,9 +83,9 @@ public class PlaceBidService implements PlaceBidUseCase {
         });
         previous.filter(bid -> !bid.buyerId().equals(buyerId)).ifPresent(outbid ->
                 notifications.send(Notification.create(outbid.buyerId(), NotificationType.OUTBID,
-                        "You have been outbid",
-                        "Someone bid " + amount.toPlainString() + " for «" + artwork.title()
-                                + "». Bid again before the auction ends.",
+                        "Superaron tu puja",
+                        "Alguien pujó " + amount.toPlainString() + " por «" + artwork.title()
+                                + "». Puedes volver a pujar antes de que termine la subasta.",
                         Map.of("auctionId", auctionId.toString(), "artworkId", artwork.id().toString()))));
         activityLogRepository.log("BID_PLACED", "Bid of " + amount + " on auction " + auctionId,
                 buyerId, Map.of("amount", amount, "auctionId", auctionId.toString()));

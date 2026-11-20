@@ -10,6 +10,7 @@ import com.underart.domain.port.in.PayOrderUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.NotificationSenderPort;
 import com.underart.domain.port.out.PaymentGatewayPort;
+import com.underart.domain.port.out.PaymentGatewayPort.CheckoutCard;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,12 @@ public class PayOrderService implements PayOrderUseCase {
 
     @Override
     public Order pay(UUID orderId, UUID buyerId) {
-        Order pending = payments.begin(orderId, buyerId);
+        return pay(orderId, buyerId, null);
+    }
+
+    @Override
+    public Order pay(UUID orderId, UUID buyerId, CheckoutCard card) {
+        Order pending = payments.begin(orderId, buyerId, currency -> paymentGateway.prepareCheckout(card, currency));
         var result = pending.snapshot() == null
                 ? paymentGateway.charge(pending.payment().token(), pending.totalPaid(), pending.payment().reference())
                 : paymentGateway.charge(pending.payment().token(), pending.totalPaid(), pending.payment().reference(),
@@ -39,18 +45,18 @@ public class PayOrderService implements PayOrderUseCase {
         }
         if (order.paymentStatus() != PaymentStatus.PAID) {
             if (completion.changed()) {
-                notifications.send(Notification.create(buyerId, NotificationType.PAYMENT_FAILED, "Payment declined",
-                        "Check your payment method and try again", data(order)));
-                activityLog.log("PAYMENT_FAILED", "Payment declined", buyerId, Map.of("orderId", orderId.toString()));
+                notifications.send(Notification.create(buyerId, NotificationType.PAYMENT_FAILED, "Pago rechazado",
+                        "Revisa tu medio de pago e inténtalo de nuevo.", data(order)));
+                activityLog.log("PAYMENT_FAILED", "Pago rechazado", buyerId, Map.of("orderId", orderId.toString()));
             }
-            throw new PaymentFailedException("Payment declined: " + result.message());
+            throw new PaymentFailedException("Pago rechazado: " + result.message());
         }
         if (completion.changed()) {
-            notifications.send(Notification.create(buyerId, NotificationType.PAYMENT_APPROVED, "Payment approved",
-                    "The artist will prepare shipping", data(order)));
+            notifications.send(Notification.create(buyerId, NotificationType.PAYMENT_APPROVED, "Pago aprobado",
+                    "El artista preparará el envío.", data(order)));
             parties.artworkOf(order).ifPresent(artwork -> notifications.send(Notification.create(artwork.artistId(),
-                    NotificationType.PAYMENT_APPROVED, "The buyer paid", "You can ship the artwork now", data(order))));
-            activityLog.log("PAYMENT_APPROVED", "Payment approved", buyerId,
+                    NotificationType.PAYMENT_APPROVED, "El comprador pagó", "Ya puedes enviar la obra.", data(order))));
+            activityLog.log("PAYMENT_APPROVED", "Pago aprobado", buyerId,
                     Map.of("orderId", orderId.toString(), "transactionId", result.transactionId()));
         }
         return order;

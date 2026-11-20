@@ -36,8 +36,8 @@ public class OrderFulfillmentService implements OrderFulfillmentUseCase {
         Order shipped = orderRepository.save(order.markShipped(carrier.trim(), trackingNumber.trim(), Instant.now()));
         String title = orderParties.artworkOf(order).map(Artwork::title).orElse("tu obra");
         notifications.send(Notification.create(shipped.winnerId(), NotificationType.ORDER_SHIPPED,
-                "Your artwork is on its way", "«" + title + "» was shipped with " + shipped.carrier() + ". Tracking number: "
-                        + shipped.trackingNumber() + ". Confirm delivery when it arrives.", data(shipped)));
+                "Tu obra está en camino", "«" + title + "» se envió con " + shipped.carrier() + ". Número de guía: "
+                        + shipped.trackingNumber() + ". Confirma la entrega cuando la recibas.", data(shipped)));
         activityLogRepository.log("ORDER_SHIPPED", "Order " + orderId + " shipped with " + shipped.carrier(), sellerId,
                 Map.of("orderId", orderId.toString(), "trackingNumber", shipped.trackingNumber()));
         return shipped;
@@ -52,8 +52,8 @@ public class OrderFulfillmentService implements OrderFulfillmentUseCase {
         }
         Order delivered = orderRepository.save(order.markDelivered(Instant.now()));
         orderParties.artworkOf(order).ifPresent(artwork -> notifications.send(Notification.create(
-                artwork.artistId(), NotificationType.ORDER_DELIVERED, "Delivery confirmed",
-                "The buyer received «" + artwork.title() + "».", data(delivered))));
+                artwork.artistId(), NotificationType.ORDER_DELIVERED, "Entrega confirmada",
+                "El comprador recibió «" + artwork.title() + "».", data(delivered))));
         activityLogRepository.log("ORDER_DELIVERED", "Order " + orderId + " delivered", buyerId,
                 Map.of("orderId", orderId.toString()));
         return delivered;

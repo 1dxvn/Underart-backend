@@ -10,8 +10,14 @@ public class PaymentConfigController {
     private final PaymentConfiguration configuration;
 
     public PaymentConfigController(@Value("${payment.provider:simulated}") String provider,
-            @Value("${payment.stripe.publishable-key:}") String publishableKey) {
-        configuration = new PaymentConfiguration(provider, "stripe".equals(provider) ? publishableKey : "");
+            @Value("${payment.stripe.publishable-key:}") String publishableKey,
+            @Value("${MERCADO_PAGO_TEST_PUBLIC_KEY:}") String mercadoPagoKey) {
+        String key = switch (provider) {
+            case "stripe" -> publishableKey;
+            case "mercadopago" -> mercadoPagoKey;
+            default -> "";
+        };
+        configuration = new PaymentConfiguration(provider, key);
     }
 
     @GetMapping("/api/v1/payments/config")

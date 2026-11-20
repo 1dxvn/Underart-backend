@@ -69,6 +69,10 @@ public record Order(
     }
 
     public Order beginPayment(User buyer, Instant now) {
+        return beginPayment(buyer, now, buyer.paymentToken());
+    }
+
+    public Order beginPayment(User buyer, Instant now, String paymentToken) {
         if (paymentStatus == PaymentStatus.PAID || paymentStatus == PaymentStatus.EXPIRED) {
             throw new BusinessRuleException("This order cannot be paid");
         }
@@ -81,7 +85,7 @@ public record Order(
         if (!now.isBefore(paymentDueAt)) {
             throw new BusinessRuleException("The payment deadline has passed");
         }
-        if (buyer.paymentToken() == null || buyer.paymentToken().isBlank()) {
+        if (paymentToken == null || paymentToken.isBlank()) {
             throw new BusinessRuleException("Register a payment method before paying");
         }
         if (buyer.shippingAddress() == null || buyer.shippingAddress().isBlank()) {
@@ -90,7 +94,7 @@ public record Order(
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid,
                 PaymentStatus.PROCESSING, shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt,
                 createdAt, paymentDueAt, snapshot == null ? null : snapshot.withDelivery(buyer),
-                new PaymentDetails("order-" + id + "-" + UUID.randomUUID(), buyer.paymentToken(), null, now), checkout);
+                new PaymentDetails("order-" + id + "-" + UUID.randomUUID(), paymentToken, null, now), checkout);
     }
 
     public Order completePayment(boolean approved, String transactionId) {

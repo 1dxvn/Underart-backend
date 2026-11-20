@@ -130,6 +130,13 @@ by weight, without carrier or live route data. Paid orders retain their original
 Users may upload a JPEG, PNG or WEBP avatar up to 5 MB and add a public bio. Local development stores
 avatars on disk, and the production storage adapter uses R2.
 
+Para habilitar Mercado Pago de prueba para pedidos en COP, obtén la clave pública y el
+token de acceso en la pestaña **Prueba** de la aplicación de Mercado Pago. Guarda los valores
+como `MERCADO_PAGO_TEST_PUBLIC_KEY` y `MERCADO_PAGO_TEST_ACCESS_TOKEN`, y configura el correo
+de un comprador colombiano de prueba como `MERCADO_PAGO_TEST_BUYER_EMAIL`. Después selecciona
+`PAYMENT_PROVIDER=mercadopago`. Usa únicamente tarjetas y cuentas de prueba. Algunos tokens de
+prueba comparten prefijo con los de producción, así que comprueba el entorno en el panel antes de activarlo.
+
 For Stripe, export `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` before
 launching the backend. Use matching test keys first. Stripe.js sends card data directly to Stripe
 and Underart receives a PaymentMethod identifier. The current backend uses off-session processing.

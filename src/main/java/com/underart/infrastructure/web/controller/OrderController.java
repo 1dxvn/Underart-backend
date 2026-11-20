@@ -15,6 +15,12 @@ import com.underart.infrastructure.security.CurrentUserProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import com.underart.domain.port.out.PaymentGatewayPort.CheckoutCard;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -60,9 +66,19 @@ public class OrderController {
 
     @PostMapping("/orders/{id}/pay")
     @Operation(summary = "Pay an order with the registered payment method")
-    public ResponseEntity<OrderResponse> pay(@PathVariable UUID id) {
-        return ResponseEntity.ok(OrderResponse.from(payOrderUseCase.pay(id, currentUser.currentUserId())));
+    public ResponseEntity<OrderResponse> pay(@PathVariable UUID id, @Valid @RequestBody(required = false) TestCardRequest request) {
+        UUID buyer = currentUser.currentUserId();
+        Order order = request == null ? payOrderUseCase.pay(id, buyer)
+                : payOrderUseCase.pay(id, buyer, new CheckoutCard(
+                        request.token(), request.method(), request.issuer(), request.installments()));
+        return ResponseEntity.ok(OrderResponse.from(order));
     }
+
+    public record TestCardRequest(
+            @NotBlank @Size(max = 80) @Pattern(regexp = "[a-zA-Z0-9_-]+") String token,
+            @NotBlank @Size(max = 30) @Pattern(regexp = "[a-zA-Z0-9_-]+") String method,
+            @Size(max = 15) @Pattern(regexp = "[0-9]*") String issuer,
+            @Min(1) @Max(12) int installments) {}
 
     @PostMapping("/orders/{id}/ship")
     @Operation(summary = "Mark as shipped (seller)")

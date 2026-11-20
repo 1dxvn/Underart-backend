@@ -10,6 +10,7 @@ import com.underart.domain.port.out.OrderRepositoryPort;
 import com.underart.domain.port.out.PaymentGatewayPort.PaymentResult;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,7 @@ public class PaymentTransactions {
     private final CheckoutAuctionSettlement settlement;
 
     @Transactional
-    public Order begin(UUID orderId, UUID buyerId) {
+    public Order begin(UUID orderId, UUID buyerId, Function<String, String> prepareCheckout) {
         var auction = settlement.lockForOrder(orderId);
         Order order = locked(orderId);
         if (!order.winnerId().equals(buyerId)) {
@@ -33,7 +34,14 @@ public class PaymentTransactions {
         if (order.paymentStatus() == PaymentStatus.PENDING || order.paymentStatus() == PaymentStatus.FAILED) {
             auction.ifPresent(value -> settlement.requireOpen(value, now));
         }
-        return orders.save(order.beginPayment(users.findById(buyerId), now));
+        var buyer = users.findById(buyerId);
+        if (order.paymentStatus() != PaymentStatus.PENDING && order.paymentStatus() != PaymentStatus.FAILED) {
+            return order.beginPayment(buyer, now);
+        }
+        String currency = order.snapshot() == null ? null : order.snapshot().currency();
+        String checkoutToken = prepareCheckout.apply(currency);
+        return orders.save(order.beginPayment(buyer, now,
+                checkoutToken == null ? buyer.paymentToken() : checkoutToken));
     }
 
     @Transactional

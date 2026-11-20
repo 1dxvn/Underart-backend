@@ -61,7 +61,7 @@ class ReviewsServiceTest {
         assertThat(view.reviewerUsername()).isEqualTo("ana");
         verify(notifications).send(org.mockito.ArgumentMatchers.argThat(n -> n.userId().equals(sellerId)
                 && n.type() == com.underart.domain.model.NotificationType.NEW_REVIEW
-                && n.message().equals("ana rated «Marina» with 5 stars.")));
+                && n.message().equals("ana calificó «Marina» con 5 estrellas.")));
     }
 
     @Test

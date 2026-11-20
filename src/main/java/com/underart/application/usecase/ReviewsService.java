@@ -54,9 +54,9 @@ public class ReviewsService implements ReviewsUseCase {
         Review saved = reviews.save(new Review(UUID.randomUUID(), orderId, reviewerId, artwork.artistId(), rating,
                 comment, Instant.now()));
         String reviewer = userRepository.findById(reviewerId).map(User::username).orElse(null);
-        notifications.send(Notification.create(artwork.artistId(), NotificationType.NEW_REVIEW, "You received a review",
-                (reviewer != null ? reviewer : "A buyer") + " rated «" + artwork.title() + "» with " + rating
-                        + (rating == 1 ? " estrella." : " stars."),
+        notifications.send(Notification.create(artwork.artistId(), NotificationType.NEW_REVIEW, "Recibiste una reseña",
+                (reviewer != null ? reviewer : "Un comprador") + " calificó «" + artwork.title() + "» con " + rating
+                        + (rating == 1 ? " estrella." : " estrellas."),
                 Map.of("orderId", orderId.toString(), "reviewId", saved.id().toString())));
         return new ReviewView(saved, reviewer);
     }

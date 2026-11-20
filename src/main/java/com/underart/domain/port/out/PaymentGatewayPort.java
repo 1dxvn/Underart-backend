@@ -12,6 +12,15 @@ public interface PaymentGatewayPort {
         return charge(paymentToken, amount, reference);
     }
 
+    default String prepareCheckout(CheckoutCard card, String currency) {
+        if (card != null) {
+            throw new com.underart.domain.exception.BusinessRuleException("La pasarela no admite este formulario.");
+        }
+        return null;
+    }
+
+    record CheckoutCard(String token, String method, String issuer, int installments) {}
+
     record PaymentResult(boolean approved, String transactionId, String message) {
     }
 }

@@ -8,6 +8,7 @@ import com.underart.domain.exception.InvalidBidException;
 import com.underart.domain.exception.InvalidSessionException;
 import com.underart.domain.exception.MediaStorageException;
 import com.underart.domain.exception.PaymentFailedException;
+import com.underart.domain.exception.PaymentPendingException;
 import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.exception.TooManyRequestsException;
 import java.time.Instant;
@@ -51,6 +52,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ForbiddenOperationException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenOperationException ex) {
         return build(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler(PaymentPendingException.class)
+    public ResponseEntity<ApiError> handlePaymentPending(PaymentPendingException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ExceptionHandler(PaymentFailedException.class)
