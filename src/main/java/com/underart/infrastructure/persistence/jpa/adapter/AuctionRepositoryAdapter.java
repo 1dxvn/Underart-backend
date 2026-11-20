@@ -61,6 +61,11 @@ public class AuctionRepositoryAdapter implements AuctionRepositoryPort {
     }
 
     @Override
+    public void deleteCancelledWithoutHistory(UUID artworkId) {
+        repository.deleteCancelledWithoutHistory(artworkId);
+    }
+
+    @Override
     public boolean existsByArtworkId(UUID artworkId) {
         return repository.existsByArtworkId(artworkId);
     }

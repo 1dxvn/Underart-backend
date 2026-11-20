@@ -28,8 +28,9 @@ public class DeleteArtworkService implements DeleteArtworkUseCase {
     @Transactional
     public void delete(UUID artworkId, UUID requesterId) {
         ArtworkOwnership.requireOwnedForUpdate(artworkRepository, artworkId, requesterId);
+        auctionRepository.deleteCancelledWithoutHistory(artworkId);
         if (auctionRepository.existsByArtworkId(artworkId)) {
-            throw new BusinessRuleException("Artwork with auctions cannot be deleted");
+            throw new BusinessRuleException("La obra tiene una subasta abierta o un historial de subastas, pujas o pedidos que debe conservarse.");
         }
         for (ArtworkMedia media : mediaRepository.findByArtworkId(artworkId)) {
             mediaStorage.delete(media.storageKey());

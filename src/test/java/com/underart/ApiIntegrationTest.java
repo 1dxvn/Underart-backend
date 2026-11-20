@@ -635,6 +635,10 @@ class ApiIntegrationTest {
         assertThat(total(call(get("/api/v1/auctions?artworkId=" + artwork), null, null, 200))).isZero();
         assertThat(this.<String>read(call(get("/api/v1/auctions/" + auction), null, null, 200),
                 "$.auction.status")).isEqualTo("CANCELLED");
+        call(delete("/api/v1/artworks/" + artwork), buyer, null, 403);
+        call(delete("/api/v1/artworks/" + artwork), artist, null, 204);
+        call(get("/api/v1/artworks/" + artwork), null, null, 404);
+        call(get("/api/v1/auctions/" + auction), null, null, 404);
     }
 
     private String createArtworkWithImage(String token, String title) throws Exception {

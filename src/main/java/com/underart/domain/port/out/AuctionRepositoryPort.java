@@ -28,6 +28,8 @@ public interface AuctionRepositoryPort {
 
     boolean existsByArtworkId(UUID artworkId);
 
+    void deleteCancelledWithoutHistory(UUID artworkId);
+
     boolean existsActiveByArtworkId(UUID artworkId);
 
     long countActiveByArtistId(UUID artistId);
