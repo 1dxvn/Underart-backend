@@ -2,6 +2,8 @@ package com.underart.infrastructure.storage;
 
 import com.underart.domain.exception.MediaStorageException;
 import com.underart.domain.port.out.MediaStoragePort;
+import java.io.IOException;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import jakarta.annotation.PreDestroy;
 import java.io.InputStream;
 import java.net.URI;
@@ -72,6 +74,17 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
                     RequestBody.fromInputStream(content, sizeBytes));
         } catch (SdkException e) {
             throw new MediaStorageException("Could not upload the file", e);
+        }
+    }
+
+    @Override
+    public byte[] readPrefix(String key, int maxBytes) {
+        var request = GetObjectRequest.builder().bucket(bucket).key(key)
+                .range("bytes=0-" + (maxBytes - 1)).build();
+        try (var content = client().getObject(request)) {
+            return content.readNBytes(maxBytes);
+        } catch (IOException | SdkException e) {
+            throw new MediaStorageException("Could not read the stored image", e);
         }
     }
 

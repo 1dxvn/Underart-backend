@@ -45,6 +45,15 @@ public class LocalMediaStorageAdapter implements MediaStoragePort {
     }
 
     @Override
+    public byte[] readPrefix(String key, int maxBytes) {
+        try (InputStream content = Files.newInputStream(resolve(key))) {
+            return content.readNBytes(maxBytes);
+        } catch (IOException e) {
+            throw new MediaStorageException("Could not read the local file", e);
+        }
+    }
+
+    @Override
     public void delete(String key) {
         try {
             Files.deleteIfExists(resolve(key));

@@ -10,5 +10,6 @@ public record CreateArtworkRequest(
         @Size(max = 2000) String description,
         @Size(max = 255) String technique,
         @Positive BigDecimal weightKg,
-        @Size(max = 255) String dimensions) {
+        @Size(max = 255) String dimensions,
+        Boolean textValuation) {
 }

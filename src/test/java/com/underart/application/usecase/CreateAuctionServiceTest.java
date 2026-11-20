@@ -17,6 +17,11 @@ import com.underart.domain.port.out.ArtworkRepositoryPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+import com.underart.domain.model.ArtworkMedia;
+import com.underart.domain.model.MediaKind;
+import com.underart.domain.port.out.ArtworkMediaRepositoryPort;
+import com.underart.domain.port.out.MediaStoragePort;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,13 +32,19 @@ class CreateAuctionServiceTest {
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final com.underart.domain.port.out.OrderRepositoryPort orders = mock(com.underart.domain.port.out.OrderRepositoryPort.class);
-    private final CreateAuctionService service = new CreateAuctionService(auctions, artworks, log, orders);
+    private final ArtworkMediaRepositoryPort media = mock(ArtworkMediaRepositoryPort.class);
+    private final MediaStoragePort storage = mock(MediaStoragePort.class);
+    private final CreateAuctionService service = new CreateAuctionService(auctions, artworks, log, orders, media, storage);
     private final UUID artistId = UUID.randomUUID();
     private UUID artworkId;
 
     @BeforeEach
     void setUp() {
         artworkId = Fixtures.artworkOf(artworks, artistId);
+        var image = new ArtworkMedia(UUID.randomUUID(), artworkId, MediaKind.IMAGE, "https://example.test/cover",
+                "cover", "image/jpeg", 30, 0, Instant.now());
+        when(media.findByArtworkId(artworkId)).thenReturn(List.of(image));
+        when(storage.readPrefix("cover", 12)).thenReturn(new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff});
         when(auctions.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -47,6 +58,20 @@ class CreateAuctionServiceTest {
         Auction auction = service.create(cmd(artistId, AuctionType.SIMPLE, null, null, Instant.now().plusSeconds(3600)));
         assertThat(auction.status()).isEqualTo(AuctionStatus.ACTIVE);
         assertThat(auction.startDate()).isNotNull();
+    }
+
+    @Test
+    void rejectsAnArtworkWithoutAnImage() {
+        when(media.findByArtworkId(artworkId)).thenReturn(List.of());
+        assertThatThrownBy(() -> service.create(cmd(artistId, AuctionType.SIMPLE, null, null, Instant.now().plusSeconds(3600))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("imagen");
+    }
+
+    @Test
+    void rejectsVideoMasqueradingAsAnImage() {
+        when(storage.readPrefix("cover", 12)).thenReturn(new byte[]{0, 0, 0});
+        assertThatThrownBy(() -> service.create(cmd(artistId, AuctionType.SIMPLE, null, null, Instant.now().plusSeconds(3600))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("imagen");
     }
 
     @Test

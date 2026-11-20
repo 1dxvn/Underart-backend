@@ -2,6 +2,7 @@ package com.underart.infrastructure.persistence.jpa.adapter;
 
 import com.underart.domain.model.ArtworkSearchCriteria;
 import com.underart.domain.model.AuctionSearchCriteria;
+import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.PriceRange;
 import com.underart.infrastructure.persistence.jpa.entity.ArtworkEntity;
 import com.underart.infrastructure.persistence.jpa.entity.AuctionEntity;
@@ -51,6 +52,8 @@ final class SearchSpecifications {
             List<Predicate> predicates = new ArrayList<>();
             if (c.status() != null) {
                 predicates.add(cb.equal(root.get("status"), c.status()));
+            } else if (c.artistId() == null) {
+                predicates.add(cb.notEqual(root.get("status"), AuctionStatus.CANCELLED));
             }
             if (c.type() != null) {
                 predicates.add(cb.equal(root.get("type"), c.type()));

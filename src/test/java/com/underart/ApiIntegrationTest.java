@@ -13,6 +13,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.jayway.jsonpath.JsonPath;
 import com.underart.domain.model.AiResult;
+import com.underart.domain.model.ArtworkDraft;
+import com.underart.domain.model.AuctionCurrency;
+import com.underart.domain.port.out.ArtworkVisionPort;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import com.underart.domain.port.in.CloseExpiredAuctionsUseCase;
 import com.underart.domain.port.out.MediaStoragePort;
 import com.underart.domain.port.out.MediaStoragePort.PresignedUpload;
@@ -65,6 +70,11 @@ class ApiIntegrationTest {
     private GroqAiAdapter groq;
     @MockBean
     private MediaStoragePort storage;
+    @MockBean
+    private ArtworkVisionPort vision;
+
+    private static final byte[] PNG_HEADER = {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+    private static final byte[] JPEG_HEADER = {(byte) 0xff, (byte) 0xd8, (byte) 0xff};
 
     @MockBean
     private com.underart.domain.port.out.VerificationMailPort verificationMail;
@@ -84,6 +94,8 @@ class ApiIntegrationTest {
         when(storage.publicUrl(anyString())).thenAnswer(i -> "https://cdn.test/" + i.getArgument(0));
         when(storage.presignUpload(anyString(), anyString(), anyLong())).thenReturn(new PresignedUpload(
                 "https://r2.test/upload", Instant.now().plusSeconds(900), Map.of("Content-Type", "video/mp4")));
+        when(storage.readPrefix(anyString(), org.mockito.ArgumentMatchers.anyInt())).thenAnswer(invocation ->
+                invocation.<String>getArgument(0).endsWith(".jpg") ? JPEG_HEADER : PNG_HEADER);
         when(storage.objectSize(anyString())).thenReturn(Optional.of(100L * 1024 * 1024));
     }
 
@@ -170,7 +182,7 @@ class ApiIntegrationTest {
     @Test
     void concurrentAuctionCreationAllowsOnlyOneActiveAuction() throws Exception {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
-        String artwork = createArtwork(artist, "Unique artwork");
+        String artwork = createArtworkWithImage(artist, "Unique artwork");
         String payload = auctionPayload(artwork);
         List<Integer> statuses = together(() -> requestStatus(post("/api/v1/auctions"), artist, payload),
                 () -> requestStatus(post("/api/v1/auctions"), artist, payload));
@@ -185,7 +197,7 @@ class ApiIntegrationTest {
     void concurrentPaymentsAndShippingPreserveOrderStateAndSnapshots() throws Exception {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
         String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
-        String artwork = createArtwork(artist, "Original artwork");
+        String artwork = createArtworkWithImage(artist, "Original artwork");
         String payload = auctionPayload(artwork);
         String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
         String order = read(call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201), "$.id");
@@ -217,7 +229,7 @@ class ApiIntegrationTest {
     void unpaidCheckoutsExpireWithoutClosingTheAuction() throws Exception {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
         String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
-        String artwork = createArtwork(artist, "Reserved artwork");
+        String artwork = createArtworkWithImage(artist, "Reserved artwork");
         String payload = auctionPayload(artwork);
         String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
         UUID order = UUID.fromString(read(call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201), "$.id"));
@@ -237,7 +249,7 @@ class ApiIntegrationTest {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
         String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
         String bidder = registerAndLogin(UUID.randomUUID() + "@test.com");
-        String artwork = createArtwork(artist, "Concurrent artwork");
+        String artwork = createArtworkWithImage(artist, "Concurrent artwork");
         String auction = read(call(post("/api/v1/auctions"), artist, auctionPayload(artwork), 201), "$.id");
         List<Integer> statuses = together(
                 () -> requestStatus(post("/api/v1/auctions/" + auction + "/bids"), bidder, "{\"amount\":150}"),
@@ -371,7 +383,7 @@ class ApiIntegrationTest {
     }
 
     private String closingFlow(String artistToken, String buyerToken, String thirdToken) throws Exception {
-        String artworkId = createArtwork(artistToken, "Nocturne");
+        String artworkId = createArtworkWithImage(artistToken, "Nocturne");
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"SIMPLE\",\"basePrice\":100,"
                 + "\"endDate\":\"" + Instant.now().plusSeconds(60) + "\"}";
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
@@ -464,7 +476,7 @@ class ApiIntegrationTest {
     }
 
     private void buyNowFlow(String artistToken, String thirdToken) throws Exception {
-        String artworkId = createArtwork(artistToken, "Marina");
+        String artworkId = createArtworkWithImage(artistToken, "Marina");
         String auction = "{\"artworkId\":\"" + artworkId + "\",\"type\":\"IMMEDIATE\",\"basePrice\":100,"
                 + "\"immediatePurchasePrice\":500,\"endDate\":\"" + Instant.now().plusSeconds(3600) + "\"}";
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
@@ -589,6 +601,40 @@ class ApiIntegrationTest {
         assertThat(Integer.parseInt(blocked.getResponse().getHeader("Retry-After"))).isPositive();
     }
 
+    @Test
+    void auctionsRequireImagesAndArtistsCanRemoveTheirOwnListings() throws Exception {
+        String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String artwork = createArtwork(artist, "Visual work");
+        String payload = auctionPayload(artwork);
+        call(post("/api/v1/auctions"), artist, payload, 400);
+        String mediaPath = "/api/v1/artworks/" + artwork + "/media";
+        upload(mediaPath, artist, "video/mp4", 201);
+        call(post("/api/v1/auctions"), artist, payload, 400);
+        String image = read(upload(mediaPath, artist, "image/png", 201), "$.id");
+        when(vision.analyze(eq(PNG_HEADER), eq("image/png"), eq(AuctionCurrency.COP)))
+                .thenReturn(new ArtworkDraft("groq", "Círculo rojo sobre fondo azul", new BigDecimal("25001")));
+        String advice = "{\"artworkId\":\"" + artwork + "\",\"mediaId\":\"" + image + "\",\"currency\":\"COP\"}";
+        call(post("/api/v1/ai/image-advice"), buyer, advice, 403);
+        var suggested = call(post("/api/v1/ai/image-advice"), artist, advice, 200);
+        assertThat(this.<String>read(suggested, "$.description")).isEqualTo("Círculo rojo sobre fondo azul");
+        assertThat(this.<Number>read(suggested, "$.suggestedPrice").intValue()).isEqualTo(26000);
+        org.mockito.Mockito.verify(storage).readPrefix(startsWith("artworks/" + artwork + "/"), eq(2_900_001));
+
+        String auction = read(call(post("/api/v1/auctions"), artist, payload, 201), "$.id");
+        call(delete("/api/v1/auctions/" + auction), buyer, null, 403);
+        call(delete("/api/v1/auctions/" + auction), artist, null, 204);
+        assertThat(total(call(get("/api/v1/auctions?artworkId=" + artwork), null, null, 200))).isZero();
+        assertThat(this.<String>read(call(get("/api/v1/auctions/" + auction), null, null, 200),
+                "$.auction.status")).isEqualTo("CANCELLED");
+    }
+
+    private String createArtworkWithImage(String token, String title) throws Exception {
+        String artwork = createArtwork(token, title);
+        upload("/api/v1/artworks/" + artwork + "/media", token, "image/png", 201);
+        return artwork;
+    }
+
     private String createArtwork(String token, String title) throws Exception {
         return read(call(post("/api/v1/artworks"), token,
                 "{\"title\":\"" + title + "\",\"description\":\"Test artwork\",\"technique\":\"Watercolor\","
@@ -681,7 +727,7 @@ class ApiIntegrationTest {
     }
 
     private String formatAuction(String seller, String type, String currency, String base, String extra) throws Exception {
-        String artwork = createArtwork(seller, type);
+        String artwork = createArtworkWithImage(seller, type);
         String request = "{\"artworkId\":\"" + artwork + "\",\"type\":\"" + type + "\",\"currency\":\"" + currency
                 + "\",\"basePrice\":" + base + ",\"endDate\":\"" + Instant.now().plusSeconds(600) + "\"" + extra + "}";
         return "/api/v1/auctions/" + this.<String>read(call(post("/api/v1/auctions"), seller, request, 201), "$.id");

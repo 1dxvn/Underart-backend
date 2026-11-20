@@ -29,6 +29,9 @@ public class CreateArtworkService implements CreateArtworkUseCase {
 
     @Override
     public Artwork create(CreateArtworkCommand cmd) {
+        if (!cmd.textValuation()) {
+            return saveArtwork(cmd, null, List.of());
+        }
         AiResult aiResult = null;
         List<String> tags = List.of();
         try {
@@ -48,6 +51,10 @@ public class CreateArtworkService implements CreateArtworkUseCase {
             }
         }
 
+        return saveArtwork(cmd, aiResult, tags);
+    }
+
+    private Artwork saveArtwork(CreateArtworkCommand cmd, AiResult aiResult, List<String> tags) {
         Artwork artwork = new Artwork(UUID.randomUUID(), cmd.artistId(), cmd.title(),
                 cmd.description(), cmd.technique(), cmd.weightKg(), cmd.dimensions(),
                 aiResult == null ? null : aiResult.suggestedPrice(), tags, Instant.now());

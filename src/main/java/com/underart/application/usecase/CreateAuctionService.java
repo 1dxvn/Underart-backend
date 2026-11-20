@@ -3,6 +3,10 @@ package com.underart.application.usecase;
 import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionType;
+import com.underart.domain.model.MediaKind;
+import com.underart.domain.model.MediaPolicy;
+import com.underart.domain.port.out.MediaStoragePort;
+import com.underart.domain.port.out.ArtworkMediaRepositoryPort;
 import com.underart.domain.model.builder.AuctionBuilder;
 import com.underart.domain.port.in.CreateAuctionUseCase;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
@@ -26,6 +30,8 @@ public class CreateAuctionService implements CreateAuctionUseCase {
     private final ArtworkRepositoryPort artworkRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
     private final OrderRepositoryPort orderRepository;
+    private final ArtworkMediaRepositoryPort artworkMedia;
+    private final MediaStoragePort mediaStorage;
 
     @Value("${payment.currency:usd}")
     private String defaultCurrency = "usd";
@@ -59,6 +65,12 @@ public class CreateAuctionService implements CreateAuctionUseCase {
                 .build();
         if (!auction.endDate().isAfter(auction.startDate()) || !auction.endDate().isAfter(Instant.now())) {
             throw new BusinessRuleException("The end date must be in the future and after the start date");
+        }
+        boolean hasImage = artworkMedia.findByArtworkId(cmd.artworkId()).stream()
+                .filter(media -> media.kind() == MediaKind.IMAGE)
+                .anyMatch(media -> MediaPolicy.hasImageSignature(media.contentType(), mediaStorage.readPrefix(media.storageKey(), 12)));
+        if (!hasImage) {
+            throw new BusinessRuleException("La obra necesita al menos una imagen válida para publicar la subasta.");
         }
         Auction saved = auctionRepository.save(auction);
         activityLogRepository.log("AUCTION_CREATED", "Auction created: " + saved.id(), cmd.requesterId(),

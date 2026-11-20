@@ -64,7 +64,7 @@ public class ArtworkController {
     public ResponseEntity<ArtworkResponse> create(@Valid @RequestBody CreateArtworkRequest req) {
         Artwork artwork = createArtworkUseCase.create(new CreateArtworkCommand(
                 currentUser.currentUserId(), req.title(), req.description(), req.technique(),
-                req.weightKg(), req.dimensions()));
+                req.weightKg(), req.dimensions(), !Boolean.FALSE.equals(req.textValuation())));
         return ResponseEntity.status(HttpStatus.CREATED).body(ArtworkResponse.from(artwork));
     }
 

@@ -27,6 +27,10 @@ public class ArtworkAiService {
             BigDecimal weight, AuctionCurrency currency) {
         AiUsagePolicy.consume(rateLimiter, userId);
         ArtworkDraft draft = aiProvider.suggestArtwork(title, notes, technique, dimensions, currency.name());
+        return advice(draft, weight, currency);
+    }
+
+    static ArtworkAdvice advice(ArtworkDraft draft, BigDecimal weight, AuctionCurrency currency) {
         BigDecimal amount = draft.suggestedPrice();
         if (currency == AuctionCurrency.COP) {
             BigDecimal step = BigDecimal.valueOf(1000);

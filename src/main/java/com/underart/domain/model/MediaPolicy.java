@@ -1,6 +1,7 @@
 package com.underart.domain.model;
 
 import com.underart.domain.exception.BusinessRuleException;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +54,16 @@ public final class MediaPolicy {
             throw new BusinessRuleException("The file exceeds the maximum of " + (max / (1024 * 1024)) + " MB");
         }
         return kind;
+    }
+
+    public static boolean hasImageSignature(String contentType, byte[] bytes) {
+        String header = HexFormat.of().formatHex(bytes, 0, Math.min(bytes.length, 12));
+        return switch (normalize(contentType)) {
+            case "image/jpeg" -> header.startsWith("ffd8ff");
+            case "image/png" -> header.startsWith("89504e470d0a1a0a");
+            case "image/webp" -> header.startsWith("52494646") && header.endsWith("57454250") && bytes.length >= 12;
+            default -> false;
+        };
     }
 
     public static String storageKey(UUID artworkId, UUID mediaId, String contentType) {

@@ -11,6 +11,8 @@ public interface MediaStoragePort {
 
     void delete(String key);
 
+    byte[] readPrefix(String key, int maxBytes);
+
     PresignedUpload presignUpload(String key, String contentType, long sizeBytes);
 
     Optional<Long> objectSize(String key);

@@ -5,6 +5,8 @@ import com.underart.application.dto.AiValuationResponse;
 import com.underart.application.usecase.ArtworkAiService;
 import com.underart.application.usecase.ArtworkAiService.ArtworkAdvice;
 import com.underart.domain.model.AuctionCurrency;
+import com.underart.application.usecase.ArtworkImageAdviceService;
+import java.util.UUID;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,6 +32,15 @@ public class AiController {
 
     private final CurrentUserProvider currentUser;
     private final ArtworkAiService artworkAiService;
+    private final ArtworkImageAdviceService imageAdvice;
+
+    public record ImageAdviceRequest(@NotNull UUID artworkId, @NotNull UUID mediaId,
+            @NotNull AuctionCurrency currency) {}
+
+    @PostMapping("/image-advice")
+    public ArtworkAdvice adviseFromImage(@Valid @RequestBody ImageAdviceRequest req) {
+        return imageAdvice.suggest(currentUser.currentUserId(), req.artworkId(), req.mediaId(), req.currency());
+    }
 
     public record ArtworkAdviceRequest(@NotBlank @Size(max = 255) String title,
             @Size(max = 2000) String description, @Size(max = 255) String technique,
