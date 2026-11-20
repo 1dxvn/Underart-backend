@@ -4,9 +4,11 @@ import com.underart.domain.port.out.AiGenerationRepositoryPort;
 import com.underart.infrastructure.persistence.mongo.document.AiGenerationDocument;
 import com.underart.infrastructure.persistence.mongo.repository.AiGenerationMongoRepository;
 import java.time.Instant;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!postgres-events")
 public class AiGenerationRepositoryAdapter implements AiGenerationRepositoryPort {
 
     private final AiGenerationMongoRepository repository;

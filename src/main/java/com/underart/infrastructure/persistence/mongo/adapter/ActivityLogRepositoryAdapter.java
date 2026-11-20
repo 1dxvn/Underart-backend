@@ -13,10 +13,12 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@Profile("!postgres-events")
 public class ActivityLogRepositoryAdapter implements ActivityLogRepositoryPort {
 
     private final ActivityLogMongoRepository repository;
