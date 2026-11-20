@@ -41,6 +41,8 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
     private final String secretAccessKey;
     private final String bucket;
     private final String publicBaseUrl;
+    private final String endpointOverride;
+    private final Region region;
     private S3Client client;
     private S3Presigner presigner;
 
@@ -49,11 +51,15 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
             @Value("${storage.r2.access-key-id:}") String accessKeyId,
             @Value("${storage.r2.secret-access-key:}") String secretAccessKey,
             @Value("${storage.r2.bucket:}") String bucket,
-            @Value("${storage.r2.public-url:}") String publicBaseUrl) {
+            @Value("${storage.r2.public-url:}") String publicBaseUrl,
+            @Value("${MEDIA_S3_ENDPOINT:}") String endpointOverride,
+            @Value("${MEDIA_S3_REGION:auto}") String region) {
         this.accountId = accountId;
         this.accessKeyId = accessKeyId;
         this.secretAccessKey = secretAccessKey;
         this.bucket = bucket;
+        this.endpointOverride = endpointOverride;
+        this.region = Region.of(region);
         this.publicBaseUrl = publicBaseUrl.endsWith("/")
                 ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
     }
@@ -121,7 +127,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
         if (client == null) {
             client = S3Client.builder()
                     .endpointOverride(endpoint())
-                    .region(Region.of("auto"))
+                    .region(region)
                     .credentialsProvider(credentials())
                     .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                     .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
@@ -136,7 +142,7 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
         if (presigner == null) {
             presigner = S3Presigner.builder()
                     .endpointOverride(endpoint())
-                    .region(Region.of("auto"))
+                    .region(region)
                     .credentialsProvider(credentials())
                     .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                     .build();
@@ -145,6 +151,9 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
     }
 
     private URI endpoint() {
+        if (!endpointOverride.isBlank()) {
+            return URI.create(endpointOverride);
+        }
         return URI.create("https://" + accountId + ".r2.cloudflarestorage.com");
     }
 
@@ -153,7 +162,8 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
     }
 
     private void requireConfigured() {
-        boolean configured = Stream.of(accountId, accessKeyId, secretAccessKey, bucket, publicBaseUrl)
+        boolean configured = (!endpointOverride.isBlank() || !accountId.isBlank())
+                && Stream.of(accessKeyId, secretAccessKey, bucket, publicBaseUrl)
                 .allMatch(v -> v != null && !v.isBlank());
         if (!configured) {
             throw new MediaStorageException("Media storage is not configured (R2_* variables)");
