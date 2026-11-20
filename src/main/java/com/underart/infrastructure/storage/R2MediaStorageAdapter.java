@@ -20,6 +20,7 @@ import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -139,10 +140,16 @@ public class R2MediaStorageAdapter implements MediaStoragePort {
         requireConfigured();
         if (client == null) {
             client = S3Client.builder()
+                    .httpClientBuilder(UrlConnectionHttpClient.builder()
+                            .connectionTimeout(Duration.ofSeconds(5))
+                            .socketTimeout(Duration.ofSeconds(30)))
                     .endpointOverride(endpoint())
                     .region(region)
                     .credentialsProvider(credentials())
-                    .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(true)
+                            .chunkedEncodingEnabled(false)
+                            .build())
                     .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                     .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
                     .build();
