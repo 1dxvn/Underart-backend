@@ -60,8 +60,23 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
 
     @Override
     public PageResult<Order> findBySellerId(UUID sellerId, PageQuery page) {
-        return PageMapper.toResult(repository.findByAuction_Artwork_Artist_Id(sellerId,
+        return PageMapper.toResult(repository.findSales(sellerId,
                 PageMapper.toPageable(page, NEWEST_FIRST)), OrderMapper::toDomain);
+    }
+
+    @Override
+    public Optional<UUID> findCheckoutAuctionId(UUID orderId) {
+        return repository.findCheckoutAuctionId(orderId);
+    }
+
+    @Override
+    public boolean hasProcessingCheckout(UUID auctionId) {
+        return repository.hasProcessingCheckout(auctionId);
+    }
+
+    @Override
+    public void expireOpenCheckouts(UUID auctionId) {
+        repository.expireOpenCheckouts(auctionId);
     }
 
     @Override

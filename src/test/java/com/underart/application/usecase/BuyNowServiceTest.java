@@ -15,17 +15,14 @@ import com.underart.domain.model.Order;
 import com.underart.domain.model.PaymentStatus;
 import com.underart.domain.port.out.ActivityLogRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
-import com.underart.domain.port.out.AuctionClosedListenerPort;
 import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 class BuyNowServiceTest {
 
@@ -33,10 +30,8 @@ class BuyNowServiceTest {
     private final OrderRepositoryPort orders = mock(OrderRepositoryPort.class);
     private final ArtworkRepositoryPort artworks = mock(ArtworkRepositoryPort.class);
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
-    private final AuctionClosedListenerPort listener = mock(AuctionClosedListenerPort.class);
-    private final AuctionOutcomeNotifier notifier = mock(AuctionOutcomeNotifier.class);
     private final BuyNowService service =
-            new BuyNowService(auctions, orders, artworks, log, List.of(listener), notifier, new OrderFactory("usd"));
+            new BuyNowService(auctions, orders, artworks, log, new OrderFactory("usd"));
     private final UUID artistId = UUID.randomUUID();
     private final UUID buyerId = UUID.randomUUID();
     private UUID artworkId;
@@ -45,7 +40,6 @@ class BuyNowServiceTest {
     void setUp() {
         artworkId = Fixtures.artworkOf(artworks, artistId);
         when(orders.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
-        when(auctions.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
     }
 
     private Auction given(BigDecimal immediatePrice, Instant end) {
@@ -55,7 +49,7 @@ class BuyNowServiceTest {
     }
 
     @Test
-    void createsPendingOrderClosesAuctionAndNotifies() {
+    void createsPendingCheckoutWithoutClosingAuction() {
         Auction auction = given(new BigDecimal("500.00"), Instant.now().plusSeconds(3600));
 
         Order order = service.buy(auction.id(), buyerId);
@@ -64,11 +58,8 @@ class BuyNowServiceTest {
         assertThat(order.platformFee()).isEqualByComparingTo("50.00");
         assertThat(order.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
         assertThat(order.winnerId()).isEqualTo(buyerId);
-        ArgumentCaptor<Auction> saved = ArgumentCaptor.forClass(Auction.class);
-        verify(auctions).save(saved.capture());
-        assertThat(saved.getValue().status()).isEqualTo(AuctionStatus.CLOSED);
-        verify(listener).onAuctionClosed(saved.getValue());
-        verify(notifier).sold(any(), any(), any(), org.mockito.ArgumentMatchers.eq(true));
+        assertThat(order.checkout()).isTrue();
+        verify(auctions, never()).save(any());
     }
 
     @Test

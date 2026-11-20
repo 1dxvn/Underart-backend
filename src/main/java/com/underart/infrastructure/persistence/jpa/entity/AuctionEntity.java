@@ -1,6 +1,7 @@
 package com.underart.infrastructure.persistence.jpa.entity;
 
 import com.underart.domain.model.AuctionStatus;
+import com.underart.domain.model.AuctionCurrency;
 import com.underart.domain.model.AuctionType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -36,6 +37,12 @@ public class AuctionEntity {
     private BigDecimal basePrice;
 
     private BigDecimal immediatePurchasePrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 3)
+    private AuctionCurrency currency;
+
+    private BigDecimal floorPrice;
 
     @Column(nullable = false)
     private Instant startDate;

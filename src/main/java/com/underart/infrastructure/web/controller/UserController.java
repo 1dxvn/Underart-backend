@@ -1,6 +1,11 @@
 package com.underart.infrastructure.web.controller;
 
 import com.underart.application.dto.PageResponse;
+import com.underart.application.usecase.RegistrationVerificationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import com.underart.application.dto.PublicUserResponse;
 import com.underart.application.dto.RegisterUserRequest;
 import com.underart.application.dto.ReviewResponse;
@@ -9,7 +14,6 @@ import com.underart.domain.model.PageQuery;
 import com.underart.domain.model.User;
 import com.underart.domain.port.in.FindUserUseCase;
 import com.underart.domain.port.in.RegisterUserUseCase.RegisterUserCommand;
-import com.underart.domain.port.in.RegisterUserUseCase;
 import com.underart.domain.port.in.ReviewsUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -33,16 +37,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final RegisterUserUseCase registerUseCase;
     private final FindUserUseCase findUserUseCase;
     private final ReviewsUseCase reviewsUseCase;
+
+    private final RegistrationVerificationService verification;
+
+    public record VerificationRequest(@NotBlank @Email @Size(max = 255) String email) {}
+
+    @PostMapping("/register/code")
+    @SecurityRequirements
+    public ResponseEntity<Void> requestCode(@Valid @RequestBody VerificationRequest req, HttpServletRequest request) {
+        verification.send(req.email(), request.getRemoteAddr());
+        return ResponseEntity.noContent().build();
+    }
 
     @PostMapping("/register")
     @Operation(summary = "Register a user")
     @SecurityRequirements
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterUserRequest req) {
-        User user = registerUseCase.register(new RegisterUserCommand(
-                req.username(), req.email(), req.password(), req.city(), req.shippingAddress()));
+        User user = verification.register(new RegisterUserCommand(
+                req.username(), req.email(), req.password(), req.city(), req.shippingAddress()), req.verificationCode());
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 

@@ -2,6 +2,7 @@ package com.underart.domain.model.builder;
 
 import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionCurrency;
 import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.AuctionType;
 import java.math.BigDecimal;
@@ -16,6 +17,8 @@ public class AuctionBuilder {
     private AuctionType type = AuctionType.SIMPLE;
     private BigDecimal basePrice;
     private BigDecimal immediatePurchasePrice;
+    private AuctionCurrency currency;
+    private BigDecimal floorPrice;
     private Instant startDate;
     private Instant endDate;
 
@@ -49,6 +52,16 @@ public class AuctionBuilder {
         return this;
     }
 
+    public AuctionBuilder withCurrency(AuctionCurrency value) {
+        this.currency = value;
+        return this;
+    }
+
+    public AuctionBuilder withFloorPrice(BigDecimal value) {
+        this.floorPrice = value;
+        return this;
+    }
+
     public Auction build() {
         if (artworkId == null || basePrice == null || endDate == null) {
             throw new IllegalStateException("Missing artwork, basePrice or endDate");
@@ -60,6 +73,21 @@ public class AuctionBuilder {
                 || (type == AuctionType.IMMEDIATE && immediatePurchasePrice == null)) {
             throw new BusinessRuleException("Invalid auction prices or dates");
         }
-        return new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice, start, endDate);
+        if (type == AuctionType.DUTCH) {
+            if (floorPrice == null || floorPrice.signum() <= 0 || floorPrice.scale() > 2
+                    || floorPrice.compareTo(basePrice) >= 0 || immediatePurchasePrice != null) {
+                throw new BusinessRuleException("Dutch auctions require a floor below their opening price");
+            }
+        } else if (floorPrice != null || (type == AuctionType.SEALED && immediatePurchasePrice != null)) {
+            throw new BusinessRuleException("These prices are not available for this auction type");
+        }
+        Auction auction = new Auction(id, artworkId, type, status, basePrice, immediatePurchasePrice, start,
+                endDate, currency, floorPrice);
+        if (!auction.validPriceStep(basePrice)
+                || (immediatePurchasePrice != null && !auction.validPriceStep(immediatePurchasePrice))
+                || (floorPrice != null && !auction.validPriceStep(floorPrice))) {
+            throw new BusinessRuleException("COP amounts must be multiples of 1,000");
+        }
+        return auction;
     }
 }

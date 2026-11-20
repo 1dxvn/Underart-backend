@@ -12,10 +12,12 @@ public record PublicUserResponse(
         String city,
         Instant createdAt,
         BigDecimal averageRating,
-        long reviewsCount) {
+        long reviewsCount,
+        String bio,
+        String avatarUrl) {
 
     public static PublicUserResponse from(User user, RatingSummary rating) {
         return new PublicUserResponse(user.id(), user.username(), user.city(), user.createdAt(), rating.average(),
-                rating.count());
+                rating.count(), user.bio(), user.avatarUrl());
     }
 }

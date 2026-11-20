@@ -28,7 +28,10 @@ public class PayOrderService implements PayOrderUseCase {
     @Override
     public Order pay(UUID orderId, UUID buyerId) {
         Order pending = payments.begin(orderId, buyerId);
-        var result = paymentGateway.charge(pending.payment().token(), pending.totalPaid(), pending.payment().reference());
+        var result = pending.snapshot() == null
+                ? paymentGateway.charge(pending.payment().token(), pending.totalPaid(), pending.payment().reference())
+                : paymentGateway.charge(pending.payment().token(), pending.totalPaid(), pending.payment().reference(),
+                        pending.snapshot().currency());
         var completion = payments.complete(orderId, pending.payment().reference(), result);
         Order order = completion.order();
         if (!order.payment().reference().equals(pending.payment().reference())) {

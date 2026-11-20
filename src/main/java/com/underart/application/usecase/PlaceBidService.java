@@ -6,8 +6,8 @@ import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.model.AntiSnipingPolicy;
 import com.underart.domain.model.Artwork;
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionType;
 import com.underart.domain.model.Bid;
-import com.underart.domain.model.BidIncrementPolicy;
 import com.underart.domain.model.Notification;
 import com.underart.domain.model.NotificationType;
 import com.underart.domain.port.in.PlaceBidUseCase;
@@ -54,9 +54,24 @@ public class PlaceBidService implements PlaceBidUseCase {
         if (artwork.artistId().equals(buyerId)) {
             throw new BusinessRuleException("You cannot bid on your own artwork");
         }
+        if (auction.type() == AuctionType.DUTCH) {
+            throw new BusinessRuleException("Accept the current Dutch auction price to purchase the artwork");
+        }
+        if (!auction.validPriceStep(amount)) {
+            throw new InvalidBidException("COP bids must be multiples of 1,000");
+        }
+        if (auction.type() == AuctionType.SEALED) {
+            if (amount.compareTo(auction.basePrice()) < 0) {
+                throw new InvalidBidException("The sealed bid must meet the base price");
+            }
+            if (bidRepository.existsByAuctionIdAndBuyerId(auctionId, buyerId)) {
+                throw new BusinessRuleException("You already submitted your sealed bid");
+            }
+            return bidRepository.save(new Bid(UUID.randomUUID(), auctionId, buyerId, amount, now));
+        }
         Optional<Bid> previous = bidRepository.findHighestBid(auctionId);
         BigDecimal highest = previous.map(Bid::amount).orElse(null);
-        BigDecimal minimum = BidIncrementPolicy.minimumNextBid(auction.basePrice(), highest);
+        BigDecimal minimum = auction.minimumBid(highest);
         if (amount.compareTo(minimum) < 0) {
             throw new InvalidBidException("The minimum bid is " + minimum.toPlainString());
         }

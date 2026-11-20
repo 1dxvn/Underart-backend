@@ -2,6 +2,7 @@ package com.underart.infrastructure.web.controller;
 
 import com.underart.application.dto.CreateReviewRequest;
 import com.underart.application.dto.OrderResponse;
+import com.underart.application.usecase.PaymentTransactions;
 import com.underart.application.dto.ReviewResponse;
 import com.underart.application.dto.ShipOrderRequest;
 import com.underart.domain.model.Order;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final CurrentUserProvider currentUser;
+    private final PaymentTransactions paymentTransactions;
     private final BuyNowUseCase buyNowUseCase;
     private final FindOrderUseCase findOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
@@ -49,6 +51,11 @@ public class OrderController {
     @Operation(summary = "Order details (buyer or seller)")
     public ResponseEntity<OrderResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(OrderResponse.from(findOrderUseCase.findById(id, currentUser.currentUserId())));
+    }
+
+    @PostMapping("/orders/{id}/cancel-checkout")
+    public ResponseEntity<OrderResponse> cancelCheckout(@PathVariable UUID id) {
+        return ResponseEntity.ok(OrderResponse.from(paymentTransactions.cancelCheckout(id, currentUser.currentUserId())));
     }
 
     @PostMapping("/orders/{id}/pay")

@@ -11,10 +11,12 @@ public record UserResponse(
         String city,
         String shippingAddress,
         boolean hasPaymentMethod,
-        Instant createdAt) {
+        Instant createdAt,
+        String bio,
+        String avatarUrl) {
 
     public static UserResponse from(User user) {
         return new UserResponse(user.id(), user.username(), user.email(), user.city(),
-                user.shippingAddress(), user.paymentToken() != null, user.createdAt());
+                user.shippingAddress(), user.paymentToken() != null, user.createdAt(), user.bio(), user.avatarUrl());
     }
 }

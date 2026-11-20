@@ -4,6 +4,9 @@ import com.underart.application.dto.AuctionDetailResponse;
 import com.underart.application.dto.AuctionResponse;
 import com.underart.application.dto.CreateAuctionRequest;
 import com.underart.application.dto.PageResponse;
+import com.underart.application.dto.OrderResponse;
+import com.underart.domain.port.in.AcceptAuctionBidUseCase;
+import jakarta.validation.constraints.NotNull;
 import com.underart.domain.model.Auction;
 import com.underart.domain.model.AuctionSearchCriteria;
 import com.underart.domain.model.AuctionSortField;
@@ -54,6 +57,7 @@ public class AuctionController {
     private final CreateAuctionUseCase createAuctionUseCase;
     private final FindAuctionUseCase findAuctionUseCase;
     private final CancelAuctionUseCase cancelAuctionUseCase;
+    private final AcceptAuctionBidUseCase acceptAuctionBidUseCase;
 
     @GetMapping
     @Operation(summary = "Search auctions with filters, price range and sorting")
@@ -88,10 +92,18 @@ public class AuctionController {
     public ResponseEntity<AuctionResponse> create(@Valid @RequestBody CreateAuctionRequest req) {
         Auction auction = createAuctionUseCase.create(new CreateAuctionCommand(
                 currentUser.currentUserId(), req.artworkId(), req.type(), req.basePrice(),
-                req.immediatePurchasePrice(), req.startDate(), req.endDate()));
+                req.immediatePurchasePrice(), req.startDate(), req.endDate(), req.currency(), req.floorPrice()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(AuctionResponse.from(findAuctionUseCase.findById(auction.id()).summary()));
     }
+
+    @PostMapping("/{id}/accept-bid")
+    public ResponseEntity<OrderResponse> acceptBid(@PathVariable UUID id, @Valid @RequestBody AcceptBidRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(OrderResponse.from(acceptAuctionBidUseCase.acceptHighest(id, currentUser.currentUserId(), req.bidId())));
+    }
+
+    public record AcceptBidRequest(@NotNull UUID bidId) {}
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Cancel an active auction without bids (artist only)")

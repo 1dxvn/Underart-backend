@@ -11,7 +11,8 @@ public final class AuctionMapper {
 
     public static Auction toDomain(AuctionEntity e) {
         return new Auction(e.getId(), e.getArtwork().getId(), e.getType(), e.getStatus(),
-                e.getBasePrice(), e.getImmediatePurchasePrice(), e.getStartDate(), e.getEndDate());
+                e.getBasePrice(), e.getImmediatePurchasePrice(), e.getStartDate(), e.getEndDate(),
+                e.getCurrency(), e.getFloorPrice());
     }
 
     public static AuctionEntity toEntity(Auction a) {
@@ -22,6 +23,8 @@ public final class AuctionMapper {
                 .status(a.status())
                 .basePrice(a.basePrice())
                 .immediatePurchasePrice(a.immediatePurchasePrice())
+                .currency(a.currency())
+                .floorPrice(a.floorPrice())
                 .startDate(a.startDate())
                 .endDate(a.endDate())
                 .build();

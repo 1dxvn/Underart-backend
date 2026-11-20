@@ -1,6 +1,7 @@
 package com.underart.application.usecase;
 
 import com.underart.domain.exception.ForbiddenOperationException;
+import com.underart.domain.exception.BusinessRuleException;
 import com.underart.domain.exception.ResourceNotFoundException;
 import com.underart.domain.model.Order;
 import com.underart.domain.model.PaymentStatus;
@@ -19,23 +20,46 @@ public class PaymentTransactions {
 
     private final OrderRepositoryPort orders;
     private final FindUserUseCase users;
+    private final CheckoutAuctionSettlement settlement;
 
     @Transactional
     public Order begin(UUID orderId, UUID buyerId) {
+        var auction = settlement.lockForOrder(orderId);
         Order order = locked(orderId);
         if (!order.winnerId().equals(buyerId)) {
             throw new ForbiddenOperationException("Only the buyer can pay this order");
         }
-        return orders.save(order.beginPayment(users.findById(buyerId), Instant.now()));
+        Instant now = Instant.now();
+        if (order.paymentStatus() == PaymentStatus.PENDING || order.paymentStatus() == PaymentStatus.FAILED) {
+            auction.ifPresent(value -> settlement.requireOpen(value, now));
+        }
+        return orders.save(order.beginPayment(users.findById(buyerId), now));
     }
 
     @Transactional
     public Completion complete(UUID orderId, String reference, PaymentResult result) {
+        var auction = settlement.lockForOrder(orderId);
         Order order = locked(orderId);
         if (!reference.equals(order.payment().reference()) || order.paymentStatus() != PaymentStatus.PROCESSING) {
             return new Completion(order, false);
         }
-        return new Completion(orders.save(order.completePayment(result.approved(), result.transactionId())), true);
+        Order completed = orders.save(order.completePayment(result.approved(), result.transactionId()));
+        if (result.approved()) auction.ifPresent(value -> settlement.close(value, completed));
+        return new Completion(completed, true);
+    }
+
+    @Transactional
+    public Order cancelCheckout(UUID orderId, UUID buyerId) {
+        Order order = locked(orderId);
+        if (!order.winnerId().equals(buyerId)) {
+            throw new ForbiddenOperationException("Only the buyer can cancel this checkout");
+        }
+        if (!order.checkout()) throw new BusinessRuleException("This is not a checkout");
+        if (order.paymentStatus() == PaymentStatus.EXPIRED) return order;
+        if (order.paymentStatus() != PaymentStatus.PENDING && order.paymentStatus() != PaymentStatus.FAILED) {
+            throw new BusinessRuleException("A checkout with a confirmed or in-progress payment cannot be cancelled");
+        }
+        return orders.save(order.withPaymentStatus(PaymentStatus.EXPIRED));
     }
 
     @Transactional

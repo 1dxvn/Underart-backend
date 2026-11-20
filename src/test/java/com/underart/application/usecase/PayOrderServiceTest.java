@@ -34,7 +34,7 @@ class PayOrderServiceTest {
     private final ActivityLogRepositoryPort log = mock(ActivityLogRepositoryPort.class);
     private final NotificationSenderPort notifications = mock(NotificationSenderPort.class);
     private final OrderParties parties = mock(OrderParties.class);
-    private final PayOrderService service = new PayOrderService(gateway, log, notifications, parties, new PaymentTransactions(orders, users));
+    private final PayOrderService service = new PayOrderService(gateway, log, notifications, parties, new PaymentTransactions(orders, users, mock(CheckoutAuctionSettlement.class)));
     private final UUID buyerId = UUID.randomUUID();
     private Order order;
 

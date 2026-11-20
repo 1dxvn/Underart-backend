@@ -11,6 +11,9 @@ import com.underart.domain.port.out.AuctionRepositoryPort;
 import com.underart.domain.port.out.OrderRepositoryPort;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Locale;
+import com.underart.domain.model.AuctionCurrency;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,9 @@ public class CreateAuctionService implements CreateAuctionUseCase {
     private final ArtworkRepositoryPort artworkRepository;
     private final ActivityLogRepositoryPort activityLogRepository;
     private final OrderRepositoryPort orderRepository;
+
+    @Value("${payment.currency:usd}")
+    private String defaultCurrency = "usd";
 
     @Override
     @Transactional
@@ -46,6 +52,8 @@ public class CreateAuctionService implements CreateAuctionUseCase {
                 .withType(cmd.type())
                 .withBasePrice(cmd.basePrice())
                 .withImmediatePurchasePrice(cmd.immediatePurchasePrice())
+                .withCurrency(cmd.currency() != null ? cmd.currency() : defaultAuctionCurrency())
+                .withFloorPrice(cmd.floorPrice())
                 .withStartDate(cmd.startDate())
                 .withEndDate(cmd.endDate())
                 .build();
@@ -56,5 +64,12 @@ public class CreateAuctionService implements CreateAuctionUseCase {
         activityLogRepository.log("AUCTION_CREATED", "Auction created: " + saved.id(), cmd.requesterId(),
                 Map.of("auctionId", saved.id().toString(), "artworkId", saved.artworkId().toString()));
         return saved;
+    }
+    private AuctionCurrency defaultAuctionCurrency() {
+        try {
+            return AuctionCurrency.valueOf(defaultCurrency.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return AuctionCurrency.USD;
+        }
     }
 }

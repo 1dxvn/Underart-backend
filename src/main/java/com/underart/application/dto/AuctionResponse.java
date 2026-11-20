@@ -1,6 +1,7 @@
 package com.underart.application.dto;
 
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionCurrency;
 import com.underart.domain.model.AuctionStatus;
 import com.underart.domain.model.AuctionSummary;
 import com.underart.domain.model.AuctionType;
@@ -20,12 +21,14 @@ public record AuctionResponse(
         BigDecimal currentPrice,
         long bidCount,
         Instant startDate,
-        Instant endDate) {
+        Instant endDate,
+        AuctionCurrency currency,
+        BigDecimal floorPrice) {
 
     public static AuctionResponse from(AuctionSummary s) {
         Auction a = s.auction();
         return new AuctionResponse(a.id(), a.artworkId(), s.artworkTitle(), s.coverUrl(), a.type(), a.status(),
                 a.basePrice(), a.immediatePurchasePrice(), s.currentPrice(), s.bidCount(), a.startDate(),
-                a.endDate());
+                a.endDate(), a.currency(), a.floorPrice());
     }
 }

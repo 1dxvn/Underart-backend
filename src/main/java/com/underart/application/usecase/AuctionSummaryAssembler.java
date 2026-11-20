@@ -2,6 +2,8 @@ package com.underart.application.usecase;
 
 import com.underart.domain.model.Artwork;
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionType;
+import java.time.Instant;
 import com.underart.domain.model.AuctionSummary;
 import com.underart.domain.port.out.ArtworkMediaRepositoryPort;
 import com.underart.domain.port.out.ArtworkRepositoryPort;
@@ -34,10 +36,13 @@ public class AuctionSummaryAssembler {
         Map<UUID, String> titles = artworkRepository.findAllByIds(artworkIds).stream()
                 .collect(Collectors.toMap(Artwork::id, Artwork::title));
         Map<UUID, String> covers = mediaRepository.coverUrlsByArtworkIds(artworkIds);
+        Instant now = Instant.now();
         return auctions.stream().map(auction -> {
             BidStats bidStats = stats.getOrDefault(auction.id(), NO_BIDS);
             return new AuctionSummary(auction, titles.get(auction.artworkId()), covers.get(auction.artworkId()),
-                    bidStats.highestAmount() != null ? bidStats.highestAmount() : auction.basePrice(),
+                    auction.type() == AuctionType.DUTCH && auction.isActive() ? auction.dutchPriceAt(now)
+                            : auction.hasSealedBids() || bidStats.highestAmount() == null
+                                    ? auction.basePrice() : bidStats.highestAmount(),
                     bidStats.count());
         }).toList();
     }

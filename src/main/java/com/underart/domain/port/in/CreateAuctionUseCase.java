@@ -1,6 +1,7 @@
 package com.underart.domain.port.in;
 
 import com.underart.domain.model.Auction;
+import com.underart.domain.model.AuctionCurrency;
 import com.underart.domain.model.AuctionType;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,6 +18,12 @@ public interface CreateAuctionUseCase {
             BigDecimal basePrice,
             BigDecimal immediatePurchasePrice,
             Instant startDate,
-            Instant endDate) {
+            Instant endDate,
+            AuctionCurrency currency,
+            BigDecimal floorPrice) {
+        public CreateAuctionCommand(UUID requesterId, UUID artworkId, AuctionType type, BigDecimal basePrice,
+                BigDecimal immediatePurchasePrice, Instant startDate, Instant endDate) {
+            this(requesterId, artworkId, type, basePrice, immediatePurchasePrice, startDate, endDate, null, null);
+        }
     }
 }

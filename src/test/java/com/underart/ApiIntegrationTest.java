@@ -66,8 +66,17 @@ class ApiIntegrationTest {
     @MockBean
     private MediaStoragePort storage;
 
+    @MockBean
+    private com.underart.domain.port.out.VerificationMailPort verificationMail;
+
+    private final Map<String, String> verificationCodes = new java.util.HashMap<>();
+
     @BeforeEach
     void stubExternalServices() {
+        org.mockito.Mockito.doAnswer(invocation -> {
+            verificationCodes.put(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(verificationMail).sendCode(anyString(), anyString());
         when(groq.getProviderName()).thenReturn("groq");
         when(groq.valuateArtwork(any(), any(), any()))
                 .thenReturn(new AiResult("groq", new BigDecimal("300.00"), List.of("landscape"), "{}"));
@@ -91,6 +100,26 @@ class ApiIntegrationTest {
         assertThat(publicProfile).doesNotContain("shippingAddress").doesNotContain("@test.com");
         assertThat(JsonPath.<Integer>read(publicProfile, "$.reviewsCount")).isZero();
         assertThat(JsonPath.<Object>read(publicProfile, "$.averageRating")).isNull();
+
+        String profile = "{\"username\":\"u\",\"bio\":\"Painter and printmaker\"}";
+        call(put("/api/v1/users/me"), artistToken, profile, 200);
+        var avatar = new MockMultipartFile("file", "photo.png", "image/png", new byte[]{1, 2, 3});
+        var updateAvatar = multipart(org.springframework.http.HttpMethod.PUT, "/api/v1/users/me/avatar").file(avatar);
+        call(updateAvatar, artistToken, null, 200);
+        var updatedProfile = call(get("/api/v1/users/" + artistId), null, null, 200);
+        assertThat(this.<String>read(updatedProfile, "$.bio")).isEqualTo("Painter and printmaker");
+        assertThat(this.<String>read(updatedProfile, "$.avatarUrl")).startsWith("https://cdn.test/avatars/");
+        assertThat(body(updatedProfile)).doesNotContain("shippingAddress", "@test.com");
+        var configuration = call(get("/api/v1/payments/config"), buyerToken, null, 200);
+        assertThat(this.<String>read(configuration, "$.provider")).isEqualTo("simulated");
+
+        when(groq.suggestArtwork(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new com.underart.domain.model.ArtworkDraft("groq", "Paisaje en óleo", new BigDecimal("25500")));
+        var advice = call(post("/api/v1/ai/artwork-advice"), artistToken,
+                "{\"title\":\"Dawn\",\"description\":\"Landscape\",\"technique\":\"Oil\",\"dimensions\":\"30x40\",\"weightKg\":1.5,\"currency\":\"COP\"}", 200);
+        assertThat(this.<String>read(advice, "$.description")).isEqualTo("Paisaje en óleo");
+        assertThat(this.<Number>read(advice, "$.suggestedPrice").intValue()).isEqualTo(26000);
+        assertThat(this.<Number>read(advice, "$.shippingEstimate").intValue()).isEqualTo(18000);
 
         String artworkId = createArtwork(artistToken, "Dawn by the lake");
         assertThat(this.<Double>read(call(get("/api/v1/artworks/" + artworkId), buyerToken, null, 200),
@@ -185,7 +214,7 @@ class ApiIntegrationTest {
     }
 
     @Test
-    void unpaidOrdersExpireAndReleaseArtwork() throws Exception {
+    void unpaidCheckoutsExpireWithoutClosingTheAuction() throws Exception {
         String artist = registerAndLogin(UUID.randomUUID() + "@test.com");
         String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
         String artwork = createArtwork(artist, "Reserved artwork");
@@ -198,7 +227,9 @@ class ApiIntegrationTest {
         assertThat(this.<String>read(call(get("/api/v1/orders/" + order), buyer, null, 200), "$.paymentStatus"))
                 .isEqualTo("EXPIRED");
         call(post("/api/v1/orders/" + order + "/pay"), buyer, null, 400);
-        call(post("/api/v1/auctions"), artist, payload, 201);
+        assertThat(this.<String>read(call(get("/api/v1/auctions/" + auction), null, null, 200),
+                "$.auction.status")).isEqualTo("ACTIVE");
+        call(post("/api/v1/auctions/" + auction + "/buy-now"), buyer, null, 201);
     }
 
     @Test
@@ -367,7 +398,7 @@ class ApiIntegrationTest {
         assertThat(total(call(get("/api/v1/users/me/sales"), artistToken, null, 200))).isEqualTo(1);
         call(get("/api/v1/orders/" + orderId), thirdToken, null, 403);
         assertThat(this.<Double>read(call(get("/api/v1/orders/" + orderId), artistToken, null, 200),
-                "$.totalPaid")).isEqualTo(290.0);
+                "$.totalPaid")).isEqualTo(293.0);
         return orderId;
     }
 
@@ -439,11 +470,14 @@ class ApiIntegrationTest {
         String auctionId = read(call(post("/api/v1/auctions"), artistToken, auction, 201), "$.id");
         call(post("/api/v1/auctions/" + auctionId + "/buy-now"), artistToken, null, 400);
         String bought = body(call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 201));
-        assertThat(JsonPath.<Double>read(bought, "$.totalPaid")).isEqualTo(565.0);
+        assertThat(JsonPath.<Double>read(bought, "$.totalPaid")).isEqualTo(568.0);
         assertThat(JsonPath.<String>read(bought, "$.shippingStatus")).isEqualTo("PENDING");
         assertThat(JsonPath.<String>read(bought, "$.trackingNumber")).isNull();
         call(post("/api/v1/orders/" + JsonPath.read(bought, "$.id") + "/review"), thirdToken, "{\"rating\":5}", 400);
-        call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 400);
+        call(post("/api/v1/orders/" + JsonPath.read(bought, "$.id") + "/cancel-checkout"), thirdToken, null, 200);
+        assertThat(this.<String>read(call(get("/api/v1/auctions/" + auctionId), null, null, 200),
+                "$.auction.status")).isEqualTo("ACTIVE");
+        call(post("/api/v1/auctions/" + auctionId + "/buy-now"), thirdToken, null, 201);
     }
 
     private void accountFlow(String buyerToken, String email) throws Exception {
@@ -534,8 +568,8 @@ class ApiIntegrationTest {
     private void statsFlow(String artistToken, String buyerToken) throws Exception {
         String artist = body(call(get("/api/v1/users/me/stats"), artistToken, null, 200));
         assertThat(JsonPath.<Integer>read(artist, "$.artworks")).isEqualTo(3);
-        assertThat(JsonPath.<Integer>read(artist, "$.activeAuctions")).isEqualTo(1);
-        assertThat(JsonPath.<Integer>read(artist, "$.salesCount")).isEqualTo(2);
+        assertThat(JsonPath.<Integer>read(artist, "$.activeAuctions")).isEqualTo(2);
+        assertThat(JsonPath.<Integer>read(artist, "$.salesCount")).isEqualTo(1);
         assertThat(JsonPath.<Double>read(artist, "$.revenue")).isEqualTo(250.0);
         assertThat(JsonPath.<Integer>read(artist, "$.purchasesCount")).isZero();
         assertThat(JsonPath.<Double>read(artist, "$.averageRating")).isEqualTo(5.0);
@@ -562,14 +596,95 @@ class ApiIntegrationTest {
     }
 
     private String registerAndLogin(String email) throws Exception {
-        call(post("/api/v1/users/register"), null, "{\"username\":\"u\",\"email\":\"" + email
-                + "\",\"password\":\"password123\",\"city\":\"Bogotá\",\"shippingAddress\":\"1 Main Street\"}", 201);
+        call(post("/api/v1/users/register/code"), null, "{\"email\":\"" + email + "\"}", 204);
+        call(post("/api/v1/users/register"), null, registration(email, verificationCodes.get(email)), 201);
         String session = body(call(post("/api/v1/auth/login"), null,
                 "{\"email\":\"" + email + "\",\"password\":\"password123\"}", 200));
         assertThat(JsonPath.<String>read(session, "$.tokenType")).isEqualTo("Bearer");
         assertThat(JsonPath.<Integer>read(session, "$.expiresIn")).isEqualTo(900);
         assertThat(JsonPath.<String>read(session, "$.refreshToken")).isNotBlank();
         return JsonPath.read(session, "$.accessToken");
+    }
+
+    private String registration(String email, String code) {
+        return "{\"username\":\"u\",\"email\":\"" + email + "\",\"password\":\"password123\","
+                + "\"city\":\"Bogotá\",\"shippingAddress\":\"1 Main Street\",\"verificationCode\":\"" + code + "\"}";
+    }
+
+    @Test
+    void registrationRequiresAnUnusedCodeForTheSameAddress() throws Exception {
+        String email = UUID.randomUUID() + "@test.com";
+        call(post("/api/v1/users/register"), null, registration(email, "000000"), 400);
+        call(post("/api/v1/users/register/code"), null, "{\"email\":\"" + email + "\"}", 204);
+        String code = verificationCodes.get(email);
+        assertThat(code).matches("[0-9]{6}");
+        String wrong = code.equals("000000") ? "111111" : "000000";
+        call(post("/api/v1/users/register"), null, registration(email, wrong), 400);
+        assertThat(jdbc.queryForObject("select attempts from registration_challenges where email = ?",
+                Integer.class, email)).isEqualTo(1);
+        call(post("/api/v1/users/register"), null, registration("other-" + email, code), 400);
+        call(post("/api/v1/users/register"), null, registration(email, code), 201);
+        call(post("/api/v1/users/register"), null, registration(email, code), 400);
+    }
+
+    @Test
+    void sellersCanSettlePublicBidsAndNewFormatsKeepTheirRulesAndCurrency() throws Exception {
+        String seller = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String buyer = registerAndLogin(UUID.randomUUID() + "@test.com");
+        String other = registerAndLogin(UUID.randomUUID() + "@test.com");
+
+        String open = formatAuction(seller, "SIMPLE", "EUR", "500", "");
+        String openBid = read(call(post(open + "/bids"), buyer, "{\"amount\":650}", 201), "$.id");
+        String accept = "{\"bidId\":\"" + openBid + "\"}";
+        call(post(open + "/accept-bid"), other, accept, 403);
+        call(post(open + "/accept-bid"), seller, "{\"bidId\":\"" + UUID.randomUUID() + "\"}", 400);
+        assertThat(this.<String>read(call(post(open + "/accept-bid"), seller, accept, 201),
+                "$.snapshot.currency")).isEqualTo("eur");
+        call(post(open + "/accept-bid"), seller, accept, 400);
+
+        String sealed = formatAuction(seller, "SEALED", "USD", "100", "");
+        String sealedBid = read(call(post(sealed + "/bids"), buyer, "{\"amount\":250}", 201), "$.id");
+        call(post(sealed + "/bids"), buyer, "{\"amount\":260}", 400);
+        call(post(sealed + "/bids"), other, "{\"amount\":225}", 201);
+        assertThat(this.<Number>read(call(get(sealed), null, null, 200), "$.auction.currentPrice").intValue()).isEqualTo(100);
+        assertThat(this.<Object>read(call(get(sealed), null, null, 200), "$.highestBid")).isNull();
+        assertThat(total(call(get(sealed + "/bids"), seller, null, 200))).isZero();
+        call(post(sealed + "/accept-bid"), seller, "{\"bidId\":\"" + sealedBid + "\"}", 400);
+        jdbc.update("update auctions set start_date = now() - interval '2 minutes', end_date = now() - interval '1 second' where id = ?",
+                UUID.fromString(sealed.substring(sealed.lastIndexOf('/') + 1)));
+        var result = closer.close(UUID.fromString(sealed.substring(sealed.lastIndexOf('/') + 1))).orElseThrow();
+        assertThat(result.subtotal()).isEqualByComparingTo("250");
+        assertThat(total(call(get(sealed + "/bids"), seller, null, 200))).isEqualTo(2);
+
+        String cop = formatAuction(seller, "SIMPLE", "COP", "25000", "");
+        call(post(cop + "/bids"), buyer, "{\"amount\":25500}", 400);
+        call(post(cop + "/bids"), buyer, "{\"amount\":25000}", 201);
+        assertThat(this.<Number>read(call(get(cop), null, null, 200), "$.minimumNextBid").intValue())
+                .isEqualTo(27000);
+
+        String dutch = formatAuction(seller, "DUTCH", "COP", "10000", ",\"floorPrice\":5000");
+        call(post(dutch + "/bids"), buyer, "{\"amount\":8000}", 400);
+        var sale = call(post(dutch + "/buy-now"), buyer, null, 201);
+        assertThat(this.<Number>read(sale, "$.subtotal").doubleValue()).isBetween(5000.0, 10000.0);
+        assertThat(this.<String>read(sale, "$.snapshot.currency")).isEqualTo("cop");
+        assertThat(this.<Number>read(sale, "$.shippingCost").intValue()).isEqualTo(18000);
+        assertThat(this.<String>read(call(get(dutch), null, null, 200), "$.auction.status")).isEqualTo("ACTIVE");
+        String competitor = read(call(post(dutch + "/buy-now"), other, null, 201), "$.id");
+        String checkout = read(sale, "$.id");
+        call(put("/api/v1/users/me/payment-method"), buyer, "{\"paymentToken\":\"tok_visa\"}", 200);
+        call(put("/api/v1/users/me/payment-method"), other, "{\"paymentToken\":\"tok_visa\"}", 200);
+        assertThat(together(() -> requestStatus(post("/api/v1/orders/" + checkout + "/pay"), buyer, null),
+                () -> requestStatus(post("/api/v1/orders/" + competitor + "/pay"), other, null)))
+                .containsExactlyInAnyOrder(200, 400);
+        assertThat(this.<String>read(call(get(dutch), null, null, 200), "$.auction.status")).isEqualTo("CLOSED");
+        call(post(dutch + "/buy-now"), other, null, 400);
+    }
+
+    private String formatAuction(String seller, String type, String currency, String base, String extra) throws Exception {
+        String artwork = createArtwork(seller, type);
+        String request = "{\"artworkId\":\"" + artwork + "\",\"type\":\"" + type + "\",\"currency\":\"" + currency
+                + "\",\"basePrice\":" + base + ",\"endDate\":\"" + Instant.now().plusSeconds(600) + "\"" + extra + "}";
+        return "/api/v1/auctions/" + this.<String>read(call(post("/api/v1/auctions"), seller, request, 201), "$.id");
     }
 
     private MvcResult upload(String path, String token, String contentType, int expected) throws Exception {

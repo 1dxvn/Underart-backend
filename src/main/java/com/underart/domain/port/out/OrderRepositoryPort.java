@@ -25,6 +25,12 @@ public interface OrderRepositoryPort {
 
     PageResult<Order> findBySellerId(UUID sellerId, PageQuery page);
 
+    Optional<UUID> findCheckoutAuctionId(UUID orderId);
+
+    boolean hasProcessingCheckout(UUID auctionId);
+
+    void expireOpenCheckouts(UUID auctionId);
+
     boolean existsByAuctionId(UUID auctionId);
 
     long countByWinnerId(UUID winnerId);

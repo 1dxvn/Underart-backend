@@ -24,6 +24,6 @@ public class UpdatePaymentMethodService implements UpdatePaymentMethodUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         String token = paymentGateway.registerPaymentMethod(user.email(), paymentMethodRef.trim());
         return userRepository.save(new User(user.id(), user.username(), user.email(),
-                user.passwordHash(), user.city(), user.shippingAddress(), token, user.createdAt()));
+                user.passwordHash(), user.city(), user.shippingAddress(), token, user.createdAt(), user.bio(), user.avatarUrl(), user.avatarKey()));
     }
 }

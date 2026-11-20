@@ -46,12 +46,14 @@ public class CloseExpiredAuctionsService implements CloseExpiredAuctionsUseCase 
             return Optional.empty();
         }
         Auction auction = locked.get();
+        if (orderRepository.hasProcessingCheckout(auctionId)) return Optional.empty();
         Optional<Bid> winner = bidRepository.findHighestBid(auctionId);
         Optional<Order> order = winner
                 .filter(bid -> !orderRepository.existsByAuctionId(auctionId))
-                .map(bid -> orderRepository.save(orderFactory.create(auctionId, bid.buyerId(), bid.amount(),
+                .map(bid -> orderRepository.save(orderFactory.create(auction, bid.buyerId(), bid.amount(),
                         ArtworkOwnership.requireExisting(artworkRepository, auction.artworkId()))));
         Auction closed = auctionRepository.save(auction.withStatus(AuctionStatus.CLOSED));
+        orderRepository.expireOpenCheckouts(auctionId);
         closedListeners.forEach(listener -> listener.onAuctionClosed(closed));
         order.ifPresent(o -> activityLogRepository.log("AUCTION_WON",
                 "You won auction " + auctionId, o.winnerId(),

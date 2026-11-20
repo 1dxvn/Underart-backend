@@ -24,7 +24,22 @@ public record Order(
         Instant createdAt,
         Instant paymentDueAt,
         PurchaseSnapshot snapshot,
-        PaymentDetails payment) {
+        PaymentDetails payment,
+        boolean checkout) {
+
+    public Order(UUID id, UUID auctionId, UUID winnerId, BigDecimal subtotal, BigDecimal shippingCost,
+            BigDecimal platformFee, BigDecimal totalPaid, PaymentStatus paymentStatus, ShippingStatus shippingStatus,
+            String carrier, String trackingNumber, Instant shippedAt, Instant deliveredAt, Instant createdAt,
+            Instant paymentDueAt, PurchaseSnapshot snapshot, PaymentDetails payment) {
+        this(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, paymentStatus, shippingStatus,
+                carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt, snapshot, payment, false);
+    }
+
+    public Order asCheckout() {
+        return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, paymentStatus,
+                shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt,
+                snapshot, payment, true);
+    }
 
     public static final BigDecimal STANDARD_SHIPPING_COST = new BigDecimal("15.00");
     private static final BigDecimal FEE_RATE = new BigDecimal("0.10");
@@ -38,15 +53,19 @@ public record Order(
     }
 
     public static Order pending(UUID auctionId, UUID winnerId, BigDecimal subtotal) {
-        return new Order(UUID.randomUUID(), auctionId, winnerId, subtotal, STANDARD_SHIPPING_COST,
-                platformFeeFor(subtotal), calculateTotal(subtotal, STANDARD_SHIPPING_COST),
+        return pending(auctionId, winnerId, subtotal, STANDARD_SHIPPING_COST);
+    }
+
+    public static Order pending(UUID auctionId, UUID winnerId, BigDecimal subtotal, BigDecimal shippingCost) {
+        return new Order(UUID.randomUUID(), auctionId, winnerId, subtotal, shippingCost,
+                platformFeeFor(subtotal), calculateTotal(subtotal, shippingCost),
                 PaymentStatus.PENDING, ShippingStatus.PENDING, null, null, null, null, Instant.now(),
                 Instant.now().plus(Duration.ofHours(48)), null, PaymentDetails.empty());
     }
 
     public Order withSnapshot(PurchaseSnapshot details) {
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, paymentStatus,
-                shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt, details, payment);
+                shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt, details, payment, checkout);
     }
 
     public Order beginPayment(User buyer, Instant now) {
@@ -71,7 +90,7 @@ public record Order(
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid,
                 PaymentStatus.PROCESSING, shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt,
                 createdAt, paymentDueAt, snapshot == null ? null : snapshot.withDelivery(buyer),
-                new PaymentDetails("order-" + id + "-" + UUID.randomUUID(), buyer.paymentToken(), null, now));
+                new PaymentDetails("order-" + id + "-" + UUID.randomUUID(), buyer.paymentToken(), null, now), checkout);
     }
 
     public Order completePayment(boolean approved, String transactionId) {
@@ -81,12 +100,12 @@ public record Order(
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid,
                 approved ? PaymentStatus.PAID : PaymentStatus.FAILED, shippingStatus, carrier, trackingNumber,
                 shippedAt, deliveredAt, createdAt, paymentDueAt, snapshot,
-                new PaymentDetails(payment.reference(), null, transactionId, payment.startedAt()));
+                new PaymentDetails(payment.reference(), null, transactionId, payment.startedAt()), checkout);
     }
 
     public Order withPaymentStatus(PaymentStatus status) {
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, status,
-                shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt, snapshot, payment);
+                shippingStatus, carrier, trackingNumber, shippedAt, deliveredAt, createdAt, paymentDueAt, snapshot, payment, checkout);
     }
 
     public Order markShipped(String newCarrier, String newTrackingNumber, Instant now) {
@@ -97,7 +116,7 @@ public record Order(
             throw new BusinessRuleException("The order has already been shipped");
         }
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, paymentStatus,
-                ShippingStatus.SHIPPED, newCarrier, newTrackingNumber, now, null, createdAt, paymentDueAt, snapshot, payment);
+                ShippingStatus.SHIPPED, newCarrier, newTrackingNumber, now, null, createdAt, paymentDueAt, snapshot, payment, checkout);
     }
 
     public Order markDelivered(Instant now) {
@@ -106,6 +125,6 @@ public record Order(
                     ? "The order has already been delivered" : "The order has not been shipped");
         }
         return new Order(id, auctionId, winnerId, subtotal, shippingCost, platformFee, totalPaid, paymentStatus,
-                ShippingStatus.DELIVERED, carrier, trackingNumber, shippedAt, now, createdAt, paymentDueAt, snapshot, payment);
+                ShippingStatus.DELIVERED, carrier, trackingNumber, shippedAt, now, createdAt, paymentDueAt, snapshot, payment, checkout);
     }
 }

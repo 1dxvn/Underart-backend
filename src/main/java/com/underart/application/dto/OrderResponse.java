@@ -25,11 +25,12 @@ public record OrderResponse(
         Instant createdAt,
         Instant paymentDueAt,
         PurchaseSnapshot snapshot,
-        String transactionId) {
+        String transactionId,
+        boolean checkout) {
 
     public static OrderResponse from(Order o) {
         return new OrderResponse(o.id(), o.auctionId(), o.winnerId(), o.subtotal(), o.shippingCost(),
                 o.platformFee(), o.totalPaid(), o.paymentStatus(), o.shippingStatus(), o.carrier(),
-                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt(), o.paymentDueAt(), o.snapshot(), o.payment().transactionId());
+                o.trackingNumber(), o.shippedAt(), o.deliveredAt(), o.createdAt(), o.paymentDueAt(), o.snapshot(), o.payment().transactionId(), o.checkout());
     }
 }

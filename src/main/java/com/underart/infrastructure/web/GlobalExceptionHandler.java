@@ -149,6 +149,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Operation conflicts with another request. Try again");
     }
 
+    @ExceptionHandler(com.underart.domain.exception.VerificationMailException.class)
+    public ResponseEntity<ApiError> handleVerificationMail(com.underart.domain.exception.VerificationMailException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
         log.error("Unhandled error", ex);

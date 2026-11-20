@@ -53,7 +53,12 @@ public class BidRepositoryAdapter implements BidRepositoryPort {
 
     @Override
     public Optional<Bid> findHighestBid(UUID auctionId) {
-        return repository.findFirstByAuctionIdOrderByAmountDesc(auctionId).map(BidMapper::toDomain);
+        return repository.findFirstByAuctionIdOrderByAmountDescBidTimeAscIdAsc(auctionId).map(BidMapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByAuctionIdAndBuyerId(UUID auctionId, UUID buyerId) {
+        return repository.existsByAuctionIdAndBuyerId(auctionId, buyerId);
     }
 
     @Override

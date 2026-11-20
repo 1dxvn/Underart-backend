@@ -16,6 +16,9 @@ ai:
   openai:
     api-key: ${OPENAI_API_KEY:}
 
+storage:
+  provider: ${MEDIA_STORAGE_PROVIDER:local}
+
 logging:
   level:
     root: INFO
