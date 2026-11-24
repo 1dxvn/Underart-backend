@@ -7,7 +7,7 @@ ARG VITE_API_BASE_URL
 ARG VITE_CATALOG_CURRENCY=USD
 RUN npm run build -- --base=/app/
 
-FROM eclipse-temurin:17-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
@@ -16,7 +16,7 @@ COPY src ./src
 COPY --from=frontend /app/dist ./frontend/dist
 RUN ./mvnw -B -q clean package -DskipTests
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 RUN useradd --system --uid 10001 --no-create-home underart
 COPY --from=build /app/target/*.jar app.jar
